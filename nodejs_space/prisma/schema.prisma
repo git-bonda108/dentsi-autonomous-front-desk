@@ -1,0 +1,91 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model clinic {
+  id           String        @id @default(uuid())
+  name         String
+  phone        String
+  address      String
+  hours        String // JSON string: {"mon": "9-5", "tue": "9-5"...}
+  created_at   DateTime      @default(now())
+  updated_at   DateTime      @updatedAt
+  appointments appointment[]
+  calls        call[]
+  services     service[]
+}
+
+model patient {
+  id             String        @id @default(uuid())
+  name           String
+  phone          String        @unique
+  email          String?
+  date_of_birth  DateTime?
+  insurance_info String? // JSON string
+  created_at     DateTime      @default(now())
+  updated_at     DateTime      @updatedAt
+  appointments   appointment[]
+  calls          call[]
+}
+
+model appointment {
+  id               String   @id @default(uuid())
+  clinic_id        String
+  patient_id       String?
+  call_id          String?
+  appointment_date DateTime
+  service_type     String
+  status           String   @default("scheduled") // scheduled, completed, cancelled, no-show
+  notes            String?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+  clinic           clinic   @relation(fields: [clinic_id], references: [id], onDelete: Cascade)
+  patient          patient? @relation(fields: [patient_id], references: [id], onDelete: SetNull)
+  call             call?    @relation(fields: [call_id], references: [id], onDelete: SetNull)
+
+  @@index([clinic_id])
+  @@index([patient_id])
+  @@index([call_id])
+  @@index([appointment_date])
+}
+
+model call {
+  id           String        @id @default(uuid())
+  clinic_id    String
+  patient_id   String?
+  call_sid     String        @unique
+  transcript   String?       @db.Text
+  intent       String? // new_appointment, reschedule, emergency, inquiry
+  duration     Int? // in seconds
+  status       String        @default("in_progress") // in_progress, completed, failed
+  metadata     String?       @db.Text // JSON string for additional data
+  created_at   DateTime      @default(now())
+  updated_at   DateTime      @updatedAt
+  clinic       clinic        @relation(fields: [clinic_id], references: [id], onDelete: Cascade)
+  patient      patient?      @relation(fields: [patient_id], references: [id], onDelete: SetNull)
+  appointments appointment[]
+
+  @@index([clinic_id])
+  @@index([patient_id])
+  @@index([call_sid])
+}
+
+model service {
+  id               String   @id @default(uuid())
+  clinic_id        String
+  service_name     String
+  duration_minutes Int
+  price            Float
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+  clinic           clinic   @relation(fields: [clinic_id], references: [id], onDelete: Cascade)
+
+  @@index([clinic_id])
+}
