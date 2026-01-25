@@ -10,12 +10,41 @@ import type {
   PaginatedResponse 
 } from './types'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+/**
+ * Get API URL - works in both development and production
+ * In production (static export), uses the current origin
+ * In development, uses localhost:3000
+ */
+function getApiUrl(): string {
+  // If NEXT_PUBLIC_API_URL is set, use it
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  
+  // In browser, use current origin (works when dashboard served from same backend)
+  if (typeof window !== 'undefined') {
+    // Remove /dashboard from the pathname to get the API root
+    const origin = window.location.origin;
+    return origin;
+  }
+  
+  // SSR/Build fallback
+  return 'http://localhost:3000';
+}
 
 const api = axios.create({
-  baseURL: API_URL,
-  timeout: 10000,
+  baseURL: getApiUrl(),
+  timeout: 15000,
 })
+
+// Add response interceptor for better error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error('API Error:', error.message, error.config?.url);
+    throw error;
+  }
+)
 
 export async function fetchDashboardStats(clinicId?: string): Promise<DashboardStats> {
   const params = clinicId ? { clinicId } : {}

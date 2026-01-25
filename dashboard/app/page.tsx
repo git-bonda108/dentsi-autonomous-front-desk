@@ -55,15 +55,46 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-lg">
-        <p className="font-medium">Error loading dashboard</p>
-        <p className="text-sm mt-1">{error}</p>
-        <button
-          onClick={loadData}
-          className="mt-3 text-sm underline hover:no-underline"
-        >
-          Try again
-        </button>
+      <div className="space-y-6">
+        <div className="bg-red-50 border border-red-200 text-red-800 px-6 py-4 rounded-lg">
+          <p className="font-semibold text-lg">Dashboard Loading Error</p>
+          <p className="text-sm mt-2">{error}</p>
+          <button
+            onClick={loadData}
+            className="mt-4 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
+          >
+            Retry Connection
+          </button>
+        </div>
+        
+        <div className="bg-blue-50 border border-blue-200 text-blue-800 px-6 py-4 rounded-lg">
+          <p className="font-semibold">Alternative: Use API Directly</p>
+          <p className="text-sm mt-2">
+            The backend API is fully functional. You can access it directly:
+          </p>
+          <ul className="mt-3 space-y-1 text-sm">
+            <li>
+              <a href="/api-docs" target="_blank" className="underline hover:no-underline">
+                API Documentation (Swagger)
+              </a>
+            </li>
+            <li>
+              <a href="/health" target="_blank" className="underline hover:no-underline">
+                Health Check
+              </a>
+            </li>
+            <li>
+              <a href="/clinics" target="_blank" className="underline hover:no-underline">
+                Clinics Data
+              </a>
+            </li>
+            <li>
+              <a href="/api/dashboard/stats" target="_blank" className="underline hover:no-underline">
+                Dashboard Stats API
+              </a>
+            </li>
+          </ul>
+        </div>
       </div>
     )
   }

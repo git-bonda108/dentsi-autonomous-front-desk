@@ -94,7 +94,7 @@ export class PolicyAgentService {
       patientId,
       action,
       ipAddress: context?.ipAddress || 'system',
-      userAgent: context?.userAgent || 'dentra-ai',
+      userAgent: context?.userAgent || 'dentsi-ai',
     };
 
     this.logger.log(
@@ -194,7 +194,7 @@ export class PolicyAgentService {
    * Generate HIPAA-compliant greeting with consent
    */
   generateConsentGreeting(clinicName: string): string {
-    return `Thank you for calling ${clinicName}. This call may be recorded for quality assurance and training purposes. By continuing, you consent to this recording. This is Dentra, your AI assistant. How can I help you today?`;
+    return `Thank you for calling ${clinicName}. This call may be recorded for quality assurance and training purposes. By continuing, you consent to this recording. This is Dentsi, your AI assistant. How can I help you today?`;
   }
 
   /**

@@ -23,4 +23,27 @@ export class ClinicsService {
     this.logger.log(`Found ${clinics.length} clinics`);
     return clinics;
   }
+
+  async updatePhone(id: string, phone: string) {
+    try {
+      const clinic = await this.prisma.clinic.update({
+        where: { id },
+        data: { phone },
+      });
+      this.logger.log(`Updated clinic ${id} phone to ${phone}`);
+      return clinic;
+    } catch (error) {
+      this.logger.error(`Failed to update clinic ${id}: ${error.message}`);
+      return null;
+    }
+  }
+
+  async findByPhone(phone: string) {
+    return this.prisma.clinic.findFirst({
+      where: { phone },
+      include: {
+        services: true,
+      },
+    });
+  }
 }

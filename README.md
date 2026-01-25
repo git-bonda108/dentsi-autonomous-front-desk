@@ -1,453 +1,134 @@
-# 🦷 DENTRA - AI Voice Agent for Dental Clinics
+# 🦷 DENTSI - Autonomous AI Dental Assistant
 
-**Automated 24/7 appointment booking and call handling for dental practices**
+> Your invisible front desk that never sleeps
 
-[![Production](https://img.shields.io/badge/Production-Live-green)](https://dentcognit.abacusai.app/dashboard/)
-[![License](https://img.shields.io/badge/License-Proprietary-red)](#)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-brightgreen)](https://nodejs.org/)
-[![NestJS](https://img.shields.io/badge/NestJS-11-red)](https://nestjs.com/)
+DENTSI is an AI-powered voice agent that handles patient calls 24/7, books appointments, collects insurance, and optimizes clinic revenue.
 
 ---
 
-## 🎯 Overview
+## Quick Start
 
-DENTRA is an enterprise-grade AI voice agent that automates dental appointment booking through natural phone conversations. The system handles missed calls, recognizes returning patients, verifies insurance, respects doctor preferences, and books appointments directly into your calendar—all without human intervention.
+### 1. Experience DENTSI Live
+Call **+1 (920) 891-4513** to talk to the AI assistant.
 
-**Production URL:** https://dentcognit.abacusai.app/dashboard/
+### 2. View the Dashboard
+```bash
+cd streamlit_demo
+streamlit run dentsi_app.py
+```
+Open http://localhost:8501
 
----
-
-## ✨ Key Features
-
-### MVP Features (Current Release)
-
-- ✅ **24/7 Inbound Call Handling** - Answers every call via Twilio, eliminating missed opportunities
-- ✅ **Caller ID & Patient Recognition** - Automatically identifies returning patients by phone number
-- ✅ **Patient History Retrieval** - Loads complete medical history, preferences, and past visits into conversation
-- ✅ **Insurance Verification** - Collects insurance information without blocking appointment booking
-- ✅ **Doctor Preference Handling** - Honors patient's preferred doctor while offering alternatives
-- ✅ **Intelligent Appointment Scheduling** - Books appointments in real-time with calendar integration
-- ✅ **Multi-Agent AI Architecture** - Voice, Scheduler, Policy, and Ops agents working in coordination
-- ✅ **Human Escalation Workflow** - Seamlessly transfers complex cases to staff with full context
-- ✅ **Real-Time Dashboard** - Web-based monitoring for appointments, calls, and escalations
-- ✅ **Multi-Clinic Support** - Manages multiple locations from single platform
-
-### Coming Soon
-
-- 🔄 Screen Pop Notifications - Real-time caller information display
-- 🔄 Outbound Calling - Automated appointment reminders and confirmations
-- 🔄 SMS & Email Integration - Multi-channel communication
-- 🔄 PMS Integration - Direct sync with Dentrix, Open Dental, Curve
-- 🔄 Machine Learning - Continuous improvement from conversations
-- 🔄 HIPAA Certification - SOC 2 Type II compliance
-- 🔄 Payment Processing - Collect copays and payments over phone
-- 🔄 Multi-Language Support - Spanish and additional languages
+### 3. Backend API
+```bash
+cd nodejs_space
+npm install
+npm run start:dev
+```
+API runs at http://localhost:3000
 
 ---
 
-## 🏗️ Architecture
-
-### Tech Stack
-
-**Backend (NestJS)**
-- Node.js 18+ runtime
-- TypeScript (strict mode)
-- PostgreSQL database
-- Prisma ORM
-- RESTful API architecture
-
-**Voice & AI Services**
-- Twilio Programmable Voice - Telephony
-- Deepgram - Speech-to-text (STT)
-- OpenAI GPT-4 - Natural language understanding
-- ElevenLabs - Text-to-speech (TTS)
-
-**Frontend Dashboard (Next.js)**
-- React 18
-- Next.js 15 (static export)
-- Tailwind CSS
-- Recharts for data visualization
-
-**Infrastructure**
-- Hosted on Abacus AI Platform
-- Automatic scaling and deployment
-- Built-in monitoring and logs
-
-### Multi-Agent System
+## Project Structure
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                     INCOMING CALL                       │
-│                   (via Twilio)                          │
-└────────────────────────┬────────────────────────────────┘
-                         ▼
-              ┌──────────────────────┐
-              │   VOICE AGENT        │
-              │  - STT (Deepgram)    │
-              │  - NLU (OpenAI)      │
-              │  - TTS (ElevenLabs)  │
-              └──────────┬───────────┘
-                         ▼
-              ┌──────────────────────┐
-              │  SCHEDULER AGENT     │
-              │  - Calendar check    │
-              │  - Slot availability │
-              │  - Booking logic     │
-              └──────────┬───────────┘
-                         ▼
-              ┌──────────────────────┐
-              │   POLICY AGENT       │
-              │  - Business rules    │
-              │  - Validation        │
-              │  - Authorization     │
-              └──────────┬───────────┘
-                         ▼
-              ┌──────────────────────┐
-              │    OPS AGENT         │
-              │  - Escalations       │
-              │  - Monitoring        │
-              │  - Analytics         │
-              └──────────────────────┘
-```
-
----
-
-## 📁 Project Structure
-
-```
-dentra_backend/
-├── nodejs_space/              # Backend NestJS application
+DENTSI/
+├── streamlit_demo/          # Dashboard UI
+│   ├── dentsi_app.py        # Main Streamlit app
+│   └── .streamlit/          # Theme configuration
+├── nodejs_space/            # Backend API
 │   ├── src/
-│   │   ├── agents/           # Multi-agent AI system
-│   │   │   ├── voice-agent.service.ts
-│   │   │   ├── scheduler-agent.service.ts
-│   │   │   ├── policy-agent.service.ts
-│   │   │   └── ops-agent.service.ts
-│   │   ├── ai-services/      # AI service integrations
-│   │   │   ├── deepgram.service.ts
-│   │   │   ├── elevenlabs.service.ts
-│   │   │   └── openai.service.ts
-│   │   ├── calls/            # Call handling
-│   │   ├── clinics/          # Clinic management
-│   │   ├── patients/         # Patient data
-│   │   ├── dashboard/        # Dashboard APIs
-│   │   ├── webhook/          # Twilio webhooks
-│   │   ├── prisma/           # Database service
-│   │   └── main.ts           # Application entry
-│   ├── prisma/
-│   │   ├── schema.prisma     # Database schema
-│   │   └── seed.ts           # Sample data
-│   ├── test/                 # E2E tests
-│   ├── public/
-│   │   └── dashboard/        # Dashboard static files
-│   └── package.json
-├── dashboard/                 # Frontend Next.js application
-│   ├── app/                  # Next.js app directory
-│   │   ├── page.tsx          # Dashboard home
-│   │   ├── appointments/     # Appointments page
-│   │   ├── calls/            # Calls log page
-│   │   ├── escalations/      # Escalations page
-│   │   └── clinics/          # Clinics page
-│   ├── components/           # React components
-│   ├── lib/                  # Utilities and API client
-│   └── package.json
-├── PROJECT_DOCUMENTS/         # Project documentation
-│   ├── MVP_FEATURES.md       # Feature documentation
-│   └── COMPLETE_PROJECT_PLAN.md  # 32-week execution plan
-└── [20+ documentation files]  # Comprehensive guides
+│   │   ├── agents/          # AI agent logic
+│   │   ├── webhook/         # Twilio webhooks
+│   │   ├── elevenlabs/      # ElevenLabs tools
+│   │   └── prisma/          # Database
+│   └── .env                 # Environment variables
+├── elevenlabs-agent/        # ElevenLabs deployment
+└── DEMO_PRESENTATION.md     # Customer demo guide
 ```
 
 ---
 
-## 🚀 Getting Started
+## Key Features
 
-### Prerequisites
+| Feature | Description |
+|---------|-------------|
+| 24/7 Availability | Never miss a call |
+| Natural Voice | ElevenLabs Bella voice |
+| Intelligent Booking | Claude Sonnet 4.5 |
+| Insurance Collection | Automated before booking |
+| Real-time Dashboard | All metrics at a glance |
+| Escalation Handling | Complex cases flagged |
 
-- Node.js 18 or higher
-- PostgreSQL 14+
-- Yarn package manager
-- Twilio account with phone number
-- OpenAI API key
-- Deepgram API key
-- ElevenLabs API key
+---
 
-### Environment Setup
+## Environment Variables
 
-1. **Clone the repository**
-```bash
-git clone https://github.com/git-bonda108/dentra-backend.git
-cd dentra-backend
-```
+Create `.env` in `nodejs_space/`:
 
-2. **Backend setup**
-```bash
-cd nodejs_space
-cp .env.example .env
-# Edit .env with your API keys and database URL
-yarn install
-yarn prisma:migrate:dev
-yarn prisma:seed
-```
+```env
+# Database
+DATABASE_URL="postgresql://..."
 
-3. **Dashboard setup**
-```bash
-cd ../dashboard
-cp .env.example .env
-# Edit .env with backend API URL
-yarn install
-```
+# Twilio
+TWILIO_ACCOUNT_SID="AC..."
+TWILIO_AUTH_TOKEN="..."
+TWILIO_PHONE_NUMBER="+19208914513"
 
-### Running Locally
+# ElevenLabs
+ELEVENLABS_API_KEY="sk_..."
+ELEVENLABS_VOICE_ID="hpp4J3VqNfWAUOO0d1Us"
 
-**Backend (Development)**
-```bash
-cd nodejs_space
-yarn start:dev
-# Server runs on http://localhost:3000
-# API Docs: http://localhost:3000/api-docs
-```
-
-**Dashboard (Development)**
-```bash
-cd dashboard
-yarn dev
-# Dashboard runs on http://localhost:3001
-```
-
-**Production Build**
-```bash
-# Backend
-cd nodejs_space
-yarn build
-yarn start:prod
-
-# Dashboard
-cd dashboard
-yarn build
-# Serves static files from 'build' directory
+# OpenAI
+OPENAI_API_KEY="sk-..."
 ```
 
 ---
 
-## 🧪 Testing
+## Architecture
 
-### Run E2E Tests
-
-```bash
-cd nodejs_space
-yarn test:e2e
 ```
-
-**Test Coverage:**
-- ✅ 21/21 Batch 2 tests (AI agent conversations)
-- ✅ 15/15 Batch 3 tests (Dashboard APIs)
-- ✅ 100% pass rate
-
-### Test Scenarios
-
-The test suite covers:
-- New patient booking
-- Returning patient recognition
-- Insurance verification flows
-- Doctor preference handling
-- Emergency escalations
-- Rescheduling and cancellations
-- Multi-clinic operations
-- Dashboard data retrieval
-
----
-
-## 📚 API Documentation
-
-**Swagger UI:** https://dentcognit.abacusai.app/api-docs
-
-### Key Endpoints
-
-**Webhook Endpoints (Twilio)**
-- `POST /webhook/voice` - Incoming call handler
-- `POST /webhook/gather` - User input processing
-- `POST /webhook/end` - Call completion
-- `POST /webhook/status` - Call status updates
-
-**Dashboard APIs**
-- `GET /api/dashboard/stats` - Dashboard statistics
-- `GET /api/dashboard/appointments` - Appointments list
-- `GET /api/dashboard/calls` - Call logs
-- `GET /api/dashboard/escalations` - Active escalations
-- `GET /api/dashboard/health` - System health check
-
-**Clinic & Patient APIs**
-- `GET /clinics` - List all clinics
-- `GET /patients` - List patients
-- `GET /calls` - Call history
-
----
-
-## 🎨 Dashboard
-
-**Live Dashboard:** https://dentcognit.abacusai.app/dashboard/
-
-### Features
-
-- 📊 **Overview** - Real-time stats, success rates, revenue tracking
-- 📅 **Appointments** - Complete appointment management with filters
-- 📞 **Calls** - Call logs with transcripts and audio playback
-- ⚠️ **Escalations** - Active issues requiring staff attention
-- 🏥 **Clinics** - Multi-location management
-- 💚 **System Health** - Service status and error monitoring
-
----
-
-## 📖 Documentation
-
-### Available Guides
-
-**For Stakeholders:**
-- `PROJECT_DOCUMENTS/MVP_FEATURES.md` - Feature documentation for external use
-- `USER_WORKFLOW_AND_BENEFITS.md` - Daily workflows and business value
-- `LIVE_TESTING_GUIDE.md` - How to test the system with real calls
-
-**For Developers:**
-- `PROJECT_DOCUMENTS/COMPLETE_PROJECT_PLAN.md` - 32-week execution plan with Gantt chart
-- `DENTRA_PRODUCTION_ENHANCEMENTS.md` - 10-batch enhancement roadmap
-- `E2E_TESTING_GUIDE.md` - Complete testing procedures
-- `DEPLOYMENT_SUMMARY.md` - System overview and deployment guide
-
-**For QA:**
-- `COMPLETE_TESTING_WORKFLOW.md` - 52-point validation workflow
-- `DASHBOARD_TESTING_CHECKLIST.md` - Dashboard testing checklist
-- `BATCH3_TEST_CASES.md` - Dashboard test scenarios
-
-**Master Index:**
-- `00_DOCUMENTATION_INDEX.md` - Complete documentation catalog
-
----
-
-## 🔐 Security
-
-- All API keys stored in environment variables (never committed to git)
-- `.env.example` provided for setup guidance
-- HTTPS enforced in production
-- Database credentials encrypted
-- Session management with auto-logout
-- Audit logging for PHI access (coming in HIPAA certification batch)
-
----
-
-## 🌐 Deployment
-
-### Production Environment
-
-**Platform:** Abacus AI  
-**URL:** https://dentcognit.abacusai.app  
-**Dashboard:** https://dentcognit.abacusai.app/dashboard/  
-**API Docs:** https://dentcognit.abacusai.app/api-docs  
-
-### Deployment Process
-
-```bash
-# Automated via Abacus AI platform
-# 1. Push code to repository
-# 2. Click Deploy button in UI
-# 3. System automatically builds and deploys
-# 4. Health check confirms deployment
+Patient Call → Twilio → ElevenLabs AI → Claude Sonnet → Database
+                                ↓
+                         Dashboard (Streamlit)
 ```
 
 ---
 
-## 📊 Current Status
+## Deployment
 
-**MVP Status:** ✅ Complete (Week 8 milestone achieved)
+### Streamlit Cloud
+1. Push to GitHub
+2. Connect to streamlit.io
+3. Deploy `streamlit_demo/dentsi_app.py`
 
-**Operational:**
-- ✅ Backend API running on port 3000
-- ✅ Dashboard deployed and accessible
-- ✅ Database seeded with sample data (5 clinics, 20 patients, 50 appointments)
-- ✅ All core features functional
-- ✅ E2E tests passing (36/36)
-
-**Production Deployment:**
-- ✅ Live at dentcognit.abacusai.app
-- ✅ Swagger documentation accessible
-- ✅ Dashboard fully functional
-- ✅ Ready for real clinic onboarding
+### Backend (Abacus AI)
+1. Push code to repo
+2. Create new deployment
+3. Set environment variables
+4. Deploy
 
 ---
 
-## 🛠️ Development Workflow
+## API Endpoints
 
-### Branch Strategy
-
-```
-master (production-ready code)
-  ↓
-develop (integration branch)
-  ↓
-feature/* (feature branches)
-```
-
-### Commit Convention
-
-```
-feat: Add new feature
-fix: Bug fix
-docs: Documentation update
-test: Add or update tests
-refactor: Code refactoring
-style: Code style changes
-chore: Build process or auxiliary tool changes
-```
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/clinics` | GET | List clinics |
+| `/patients` | GET | List patients |
+| `/appointments` | GET | List appointments |
+| `/calls` | GET | Call history |
+| `/elevenlabs/tools/*` | POST | ElevenLabs agent tools |
 
 ---
 
-## 🤝 Contributing
-
-This is a proprietary project. External contributions are not accepted at this time.
-
----
-
-## 📝 License
+## License
 
 Proprietary - All rights reserved.
 
 ---
 
-## 🆘 Support
+## Contact
 
-For issues, questions, or support:
-
-- **Documentation:** See `00_DOCUMENTATION_INDEX.md` for complete guide catalog
-- **Testing Issues:** Refer to `E2E_TESTING_GUIDE.md`
-- **Deployment Issues:** Check `DEPLOYMENT_SUMMARY.md`
-- **Feature Requests:** Review `DENTRA_PRODUCTION_ENHANCEMENTS.md` for planned features
-
----
-
-## 📈 Roadmap
-
-**Completed:**
-- ✅ Phase 1: MVP (Weeks 1-8) - **COMPLETE**
-
-**In Progress:**
-- 🔄 Phase 2: Post-MVP Enhancements (Weeks 9-32)
-  - Next up: Batch 4 (Screen Pop & Enhanced Context)
-
-**See `PROJECT_DOCUMENTS/COMPLETE_PROJECT_PLAN.md` for detailed 32-week timeline with Gantt chart.**
-
----
-
-## 🎯 Quick Links
-
-- 🌐 [Production Dashboard](https://dentcognit.abacusai.app/dashboard/)
-- 📚 [API Documentation](https://dentcognit.abacusai.app/api-docs)
-- 💚 [Health Check](https://dentcognit.abacusai.app/health)
-- 📄 [MVP Features](PROJECT_DOCUMENTS/MVP_FEATURES.md)
-- 📅 [Complete Project Plan](PROJECT_DOCUMENTS/COMPLETE_PROJECT_PLAN.md)
-- 🚀 [Enhancement Roadmap](DENTRA_PRODUCTION_ENHANCEMENTS.md)
-
----
-
-**Built with ❤️ for dental clinics who never want to miss a call.**
-
-*Version: 1.0.0 (MVP)*  
-*Last Updated: January 24, 2026*
+- **Email:** satya@dentsi.com
+- **Phone:** +1 (920) 891-4513

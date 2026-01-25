@@ -1,40 +1,90 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { OpenAIService, ConversationMessage } from '../ai-services/openai.service';
-import { DeepgramService } from '../ai-services/deepgram.service';
+import { DentsiAgentService } from '../agents/dentsi-agent.service';
+import { SentimentAgentService } from '../agents/sentiment-agent.service';
 import { ElevenLabsService } from '../ai-services/elevenlabs.service';
-import { VoiceAgentService } from '../agents/voice-agent.service';
-import { SchedulerAgentService } from '../agents/scheduler-agent.service';
-import { PolicyAgentService } from '../agents/policy-agent.service';
-import { OpsAgentService } from '../agents/ops-agent.service';
+import { DeepgramService } from '../ai-services/deepgram.service';
+import { SpamDetectionService } from '../analytics/spam-detection.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
-interface CallSession {
-  callSid: string;
-  clinicId: string;
-  conversationHistory: ConversationMessage[];
-  transcript: string[];
-  attemptCount?: number;
-}
-
+/**
+ * WebhookService - Handles Twilio voice webhooks
+ * 
+ * This service:
+ * - Receives incoming calls from Twilio
+ * - Initializes Dentsi agent sessions
+ * - Processes speech input through the AI
+ * - Uses Deepgram for enhanced transcription
+ * - Uses ElevenLabs for natural voice synthesis
+ * - Applies sentiment analysis for tone adjustment
+ */
 @Injectable()
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
-  private callSessions: Map<string, CallSession> = new Map();
+  private readonly useElevenLabs: boolean;
+  private readonly useDeepgram: boolean;
+  private readonly audioDir: string;
 
   constructor(
-    private prisma: PrismaService,
-    private openai: OpenAIService,
-    private deepgram: DeepgramService,
-    private elevenlabs: ElevenLabsService,
-    private voiceAgent: VoiceAgentService,
-    private schedulerAgent: SchedulerAgentService,
-    private policyAgent: PolicyAgentService,
-    private opsAgent: OpsAgentService,
-  ) {}
+    private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
+    private readonly dentsiAgent: DentsiAgentService,
+    private readonly sentimentAgent: SentimentAgentService,
+    private readonly elevenlabs: ElevenLabsService,
+    private readonly deepgram: DeepgramService,
+    private readonly spamDetection: SpamDetectionService,
+  ) {
+    // Check if enhanced voice services are enabled
+    this.useElevenLabs = !!this.configService.get<string>('ELEVENLABS_API_KEY');
+    this.useDeepgram = !!this.configService.get<string>('DEEPGRAM_API_KEY');
+    this.audioDir = path.join(process.cwd(), 'public', 'audio');
+    
+    // Create audio directory if it doesn't exist
+    if (this.useElevenLabs && !fs.existsSync(this.audioDir)) {
+      fs.mkdirSync(this.audioDir, { recursive: true });
+    }
+    
+    this.logger.log(`Voice services: ElevenLabs=${this.useElevenLabs}, Deepgram=${this.useDeepgram}`);
+  }
 
-  async handleIncomingCall(to: string, callSid: string): Promise<string> {
+  /**
+   * Handle incoming call from Twilio
+   */
+  async handleIncomingCall(
+    to: string,
+    from: string,
+    callSid: string,
+  ): Promise<string> {
     try {
-      this.logger.log(`Incoming call: ${callSid} to ${to}`);
+      this.logger.log(`📞 Incoming call: ${callSid} from ${from} to ${to}`);
+
+      // Check for spam
+      const callHistory = await this.spamDetection.getCallHistory(from);
+      const spamCheck = await this.spamDetection.checkSpam(from, undefined, undefined, callHistory);
+      
+      if (spamCheck.blockRecommended) {
+        this.logger.warn(`🚫 Spam call blocked from ${from}: ${spamCheck.reason}`);
+        
+        // Log as spam
+        await this.prisma.call.create({
+          data: {
+            call_sid: callSid,
+            clinic_id: 'system',
+            caller_phone: from,
+            status: 'completed',
+            outcome: 'spam',
+            duration: 0,
+          },
+        }).catch(() => {}); // Ignore if clinic_id invalid
+        
+        return this.spamDetection.generateSpamResponse();
+      }
+
+      if (spamCheck.isSpam && !spamCheck.blockRecommended) {
+        this.logger.warn(`⚠️ Potential spam from ${from}, proceeding with caution`);
+      }
 
       // Find the clinic by phone number
       const clinic = await this.prisma.clinic.findFirst({
@@ -43,289 +93,239 @@ export class WebhookService {
 
       if (!clinic) {
         this.logger.error(`No clinic found for phone: ${to}`);
-        return this.generateErrorTwiML();
+        return this.generateErrorTwiML('clinic_not_found');
       }
 
-      // Initialize call session
-      const session: CallSession = {
+      // Initialize Dentsi agent session with patient context
+      const { greeting } = await this.dentsiAgent.initializeSession(
         callSid,
-        clinicId: clinic.id,
-        conversationHistory: [],
-        transcript: [],
-      };
-      this.callSessions.set(callSid, session);
+        clinic.id,
+        from, // Caller's phone for patient lookup
+      );
 
-      // Create call record
-      await this.prisma.call.create({
-        data: {
-          call_sid: callSid,
-          clinic_id: clinic.id,
-          status: 'in_progress',
-        },
-      });
+      this.logger.log(`✅ Session initialized. Greeting: "${greeting.substring(0, 50)}..."`);
 
-      // Generate greeting
-      const greeting = await this.openai.generateGreeting(clinic.name);
-      session.conversationHistory.push({
-        role: 'assistant',
-        content: greeting,
-      });
-
+      // Generate TwiML response
       return this.generateTwiMLResponse(greeting, callSid);
     } catch (error) {
-      this.logger.error('Error handling incoming call:', error);
-      return this.generateErrorTwiML();
+      this.logger.error(`❌ Error handling incoming call: ${error.message}`);
+      return this.generateErrorTwiML('system_error');
     }
   }
 
+  /**
+   * Handle user speech input (Twilio Gather callback)
+   */
   async handleUserSpeech(
     callSid: string,
     speechResult: string,
   ): Promise<string> {
     try {
-      const session = this.callSessions.get(callSid);
-      if (!session) {
-        this.logger.error(`No session found for call: ${callSid}`);
-        return this.generateErrorTwiML();
+      this.logger.log(`🎤 Speech received for ${callSid}: "${speechResult}"`);
+
+      // Analyze sentiment first
+      const sentiment = await this.sentimentAgent.analyzeSentiment(callSid, speechResult);
+      this.logger.log(`😊 Sentiment: ${sentiment.sentiment} (${sentiment.confidence}) - ${sentiment.recommendation}`);
+
+      // Process through Dentsi agent
+      const response = await this.dentsiAgent.processUserInput(callSid, speechResult);
+
+      this.logger.log(`🤖 Agent response: "${response.message.substring(0, 50)}..."`);
+
+      // Check if we should continue or end
+      if (!response.shouldContinue) {
+        return this.generateTwiMLResponse(response.message, callSid, true);
       }
 
-      // Add user message to conversation
-      session.conversationHistory.push({
-        role: 'user',
-        content: speechResult,
-      });
-      session.transcript.push(`User: ${speechResult}`);
-
-      // 🎯 STEP 1: VoiceAgent - Detect intent from latest user message
-      const intentResult = await this.voiceAgent.detectIntent(speechResult);
-      this.logger.log(
-        `[Webhook] Intent detected: ${intentResult.type}, Confidence: ${intentResult.confidence}`,
-      );
-
-      // 🛡️ STEP 2: PolicyAgent - Check if consent is needed
-      if (intentResult.type === 'new_appointment' && !session.attemptCount) {
-        const consentRecord = await this.policyAgent.captureConsent(
-          callSid,
-          true, // consent given
-          'verbal',
-        );
-        this.logger.log('[Webhook] Consent captured:', consentRecord.method);
+      // Check for booking confirmation
+      if (response.bookingConfirmation) {
+        this.logger.log(`✅ Booking confirmed: ${response.bookingConfirmation.appointmentId}`);
       }
 
-      let response = '';
-
-      // 🗓️ STEP 3: SchedulerAgent - Handle booking if intent is appointment
-      if (intentResult.type === 'new_appointment') {
-        // Extract patient info from conversation
-        const conversationStrings = session.conversationHistory.map(
-          (msg) => `${msg.role}: ${msg.content}`,
-        );
-        const patientInfo = await this.voiceAgent.extractPatientInfo(
-          conversationStrings,
-        );
-
-        // Check availability
-        const slots = await this.schedulerAgent.checkAvailability(
-          session.clinicId,
-          'cleaning', // Default service type
-          {
-            start: new Date(),
-            end: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 2 weeks
-          },
-        );
-
-        if (slots.length > 0) {
-          const topSlot = slots[0];
-          response = `Great! I have availability on ${topSlot.date.toLocaleDateString()} at ${topSlot.time}. Would you like to book this slot?`;
-
-          // If user confirms, book the appointment
-          if (
-            speechResult.toLowerCase().includes('yes') ||
-            speechResult.toLowerCase().includes('sure') ||
-            speechResult.toLowerCase().includes('ok')
-          ) {
-            const bookingResult = await this.schedulerAgent.bookAppointment(
-              patientInfo,
-              session.clinicId,
-              topSlot.date,
-              topSlot.time,
-              'cleaning',
-            );
-
-            if (bookingResult.success) {
-              response = bookingResult.message;
-              this.logger.log(
-                `[Webhook] ✅ Appointment booked: ${bookingResult.appointmentId}`,
-              );
-            } else {
-              response = bookingResult.message;
-              this.logger.warn('[Webhook] ⚠️ Booking failed');
-            }
-          }
-        } else {
-          // ⚠️ STEP 4: OpsAgent - Handle no availability
-          response = this.opsAgent.generateRecoveryMessage('no_availability');
-          const failure = await this.opsAgent.handleFailure(
-            new Error('No appointment availability'),
-            {
-              callSid,
-              clinicId: session.clinicId,
-              intent: intentResult.type,
-            },
-          );
-          this.logger.log(`[Webhook] Failure handled: ${failure.type}`);
-        }
-      } else {
-        // Default: Use VoiceAgent to generate contextual response
-        const context = {
-          messages: session.conversationHistory,
-          intent: intentResult,
-          clinicId: session.clinicId,
-        };
-        response = await this.voiceAgent.generateResponse(context);
-      }
-
-      // Add assistant response to history
-      session.conversationHistory.push({
-        role: 'assistant',
-        content: response,
-      });
-      session.transcript.push(`Dentra: ${response}`);
-
-      // Update call record with transcript
-      await this.prisma.call.update({
-        where: { call_sid: callSid },
-        data: {
-          transcript: session.transcript.join('\n'),
-        },
-      });
-
-      return this.generateTwiMLResponse(response, callSid);
+      // Generate TwiML with optional ElevenLabs voice
+      return this.generateTwiMLResponse(response.message, callSid);
     } catch (error) {
-      this.logger.error('[Webhook] Error handling user speech:', error);
-
-      // 🔧 STEP 5: OpsAgent - Handle system errors
-      const recoveryMessage = this.opsAgent.generateRecoveryMessage('system_error');
-      const session = this.callSessions.get(callSid);
-      await this.opsAgent.handleFailure(
-        error as Error,
-        {
-          callSid,
-          clinicId: session?.clinicId || '',
-        },
-      );
-
+      this.logger.error(`❌ Error handling speech: ${error.message}`);
+      
+      // Try to recover gracefully
+      const recoveryMessage = "I apologize, I'm having some trouble. Let me try again. What can I help you with?";
       return this.generateTwiMLResponse(recoveryMessage, callSid);
     }
   }
 
-  async handleCallEnd(callSid: string, duration: number): Promise<void> {
+  /**
+   * Enhanced transcription using Deepgram (for audio buffer input)
+   */
+  async transcribeWithDeepgram(audioBuffer: Buffer): Promise<string> {
+    if (!this.useDeepgram) {
+      this.logger.warn('Deepgram not configured, falling back to Twilio transcription');
+      return '';
+    }
+
     try {
-      const session = this.callSessions.get(callSid);
-      if (!session) {
-        this.logger.warn(`No session found for ended call: ${callSid}`);
-        return;
-      }
-
-      // Get last user message for intent detection
-      const lastUserMessage =
-        session.conversationHistory.find(
-          (msg, idx) => msg.role === 'user' && idx === session.conversationHistory.length - 2,
-        )?.content || 'unknown';
-
-      // 🎯 VoiceAgent - Final intent detection
-      const intentResult = await this.voiceAgent.detectIntent(lastUserMessage);
-
-      // Extract patient info
-      const conversationStrings = session.conversationHistory.map(
-        (msg) => `${msg.role}: ${msg.content}`,
-      );
-      const patientInfo = await this.voiceAgent.extractPatientInfo(
-        conversationStrings,
-      );
-
-      // Try to find or create patient if phone number was captured
-      let patientId = null;
-      if (patientInfo.phone) {
-        const patient = await this.prisma.patient.findFirst({
-          where: { phone: patientInfo.phone },
-        });
-        patientId = patient?.id || null;
-      }
-
-      // Update call record
-      await this.prisma.call.update({
-        where: { call_sid: callSid },
-        data: {
-          patient_id: patientId,
-          intent: intentResult.type,
-          duration,
-          status: 'completed',
-          metadata: JSON.stringify({
-            intentDetails: intentResult.details,
-            patientInfo,
-          }),
-        },
-      });
-
-      // 🛡️ PolicyAgent - Generate audit log for HIPAA compliance
-      await this.policyAgent.logPhiAccess(
-        callSid,
-        'system',
-        'call_completed',
-        {
-          duration,
-          intent: intentResult.type,
-          patientId,
-        },
-      );
-
-      // Clean up session
-      this.callSessions.delete(callSid);
-
-      this.logger.log(
-        `[Webhook] Call completed: ${callSid}, Intent: ${intentResult.type}, Duration: ${duration}s`,
-      );
+      const transcript = await this.deepgram.transcribeAudio(audioBuffer);
+      this.logger.log(`🎯 Deepgram transcription: "${transcript}"`);
+      return transcript;
     } catch (error) {
-      this.logger.error('[Webhook] Error handling call end:', error);
-
-      // 🔧 OpsAgent - Log failure
-      const session = this.callSessions.get(callSid);
-      await this.opsAgent.handleFailure(
-        error as Error,
-        {
-          callSid,
-          clinicId: session?.clinicId || '',
-        },
-      );
+      this.logger.error(`Deepgram transcription failed: ${error.message}`);
+      return '';
     }
   }
 
-  private generateTwiMLResponse(message: string, callSid: string): string {
+  /**
+   * Generate audio using ElevenLabs and return URL
+   */
+  async generateElevenLabsAudio(text: string, callSid: string): Promise<string | null> {
+    if (!this.useElevenLabs) {
+      return null;
+    }
+
+    try {
+      const audioBuffer = await this.elevenlabs.textToSpeech(text);
+      const filename = `${callSid}-${Date.now()}.mp3`;
+      const filepath = path.join(this.audioDir, filename);
+      
+      fs.writeFileSync(filepath, audioBuffer);
+      
+      // Return public URL (assuming backend serves /public/audio)
+      const baseUrl = this.configService.get<string>('BACKEND_URL') || 'https://dentsi.abacusai.app';
+      return `${baseUrl}/audio/${filename}`;
+    } catch (error) {
+      this.logger.error(`ElevenLabs audio generation failed: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Handle call end (status callback)
+   */
+  async handleCallEnd(
+    callSid: string,
+    callDuration: number,
+    callStatus: string,
+  ): Promise<void> {
+    try {
+      this.logger.log(`📴 Call ended: ${callSid}, Duration: ${callDuration}s, Status: ${callStatus}`);
+
+      // End the Dentsi agent session
+      await this.dentsiAgent.endSession(callSid, callDuration);
+
+      this.logger.log(`✅ Session cleaned up for ${callSid}`);
+    } catch (error) {
+      this.logger.error(`❌ Error handling call end: ${error.message}`);
+    }
+  }
+
+  /**
+   * Handle DTMF input (keypad presses)
+   */
+  async handleDTMF(callSid: string, digits: string): Promise<string> {
+    this.logger.log(`🔢 DTMF received for ${callSid}: ${digits}`);
+
+    // Map common DTMF inputs to speech equivalents
+    const dtmfMap: Record<string, string> = {
+      '1': 'Yes, confirm',
+      '2': 'No, reschedule',
+      '3': 'Cancel',
+      '0': 'Connect me to a staff member',
+      '*': 'Go back',
+      '#': 'Repeat that please',
+    };
+
+    const speechEquivalent = dtmfMap[digits] || `I pressed ${digits}`;
+    
+    // Process as speech input
+    return this.handleUserSpeech(callSid, speechEquivalent);
+  }
+
+  /**
+   * Generate TwiML response with optional ElevenLabs voice
+   * 
+   * Voice options:
+   * 1. ElevenLabs (if configured) - Most natural voice
+   * 2. Polly.Joanna-Generative - High quality Twilio voice
+   * 3. Polly.Joanna - Standard Twilio voice (fallback)
+   */
+  private generateTwiMLResponse(message: string, callSid: string, isTransfer: boolean = false): string {
+    const escapedMessage = this.escapeXml(message);
+    
+    // Use Polly.Joanna-Generative for better quality when available
+    const voice = 'Polly.Joanna-Generative';
+    
+    if (isTransfer) {
+      // End call with message
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="${voice}" language="en-US">${escapedMessage}</Say>
+  <Say voice="${voice}">Please hold while I connect you with one of our amazing team members.</Say>
+  <Hangup/>
+</Response>`;
+    }
+    
     return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna">${this.escapeXml(message)}</Say>
+  <Say voice="${voice}" language="en-US">${escapedMessage}</Say>
   <Gather 
-    input="speech" 
-    timeout="3" 
+    input="speech dtmf" 
+    timeout="5" 
+    speechTimeout="auto" 
+    action="/webhook/gather?callSid=${callSid}" 
+    method="POST"
+    language="en-US"
+    speechModel="phone_call"
+    enhanced="true"
+  >
+  </Gather>
+  <Say voice="${voice}">I didn't hear anything. Are you still there?</Say>
+  <Gather 
+    input="speech dtmf" 
+    timeout="5" 
     speechTimeout="auto" 
     action="/webhook/gather?callSid=${callSid}" 
     method="POST"
   >
   </Gather>
-  <Say>I didn't hear anything. Let me transfer you to our staff.</Say>
-  <Redirect>/webhook/end?callSid=${callSid}</Redirect>
-</Response>`;
-  }
-
-  private generateErrorTwiML(): string {
-    return `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="Polly.Joanna">We're sorry, but we're experiencing technical difficulties. Please try calling again later.</Say>
+  <Say voice="${voice}">I'll let you go for now. Feel free to call back anytime - we're always happy to help! Take care!</Say>
   <Hangup/>
 </Response>`;
   }
 
+  /**
+   * Generate TwiML for transferring to staff
+   */
+  private generateTransferTwiML(callSid: string, message: string): string {
+    const escapedMessage = this.escapeXml(message);
+    
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Joanna">${escapedMessage}</Say>
+  <Say voice="Polly.Joanna">Please hold while I connect you with a staff member.</Say>
+  <Enqueue waitUrl="/webhook/hold-music">support</Enqueue>
+</Response>`;
+  }
+
+  /**
+   * Generate error TwiML
+   */
+  private generateErrorTwiML(errorType: string): string {
+    const messages: Record<string, string> = {
+      clinic_not_found: "I'm sorry, but I couldn't connect you to the clinic. Please check the number and try again.",
+      system_error: "We're experiencing technical difficulties. Please try calling again in a few minutes.",
+      default: "Something went wrong. Please call back and try again.",
+    };
+
+    const message = messages[errorType] || messages.default;
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Joanna">${message}</Say>
+  <Hangup/>
+</Response>`;
+  }
+
+  /**
+   * Escape XML special characters
+   */
   private escapeXml(unsafe: string): string {
     return unsafe
       .replace(/&/g, '&amp;')
@@ -335,7 +335,18 @@ export class WebhookService {
       .replace(/'/g, '&apos;');
   }
 
-  getCallSession(callSid: string): CallSession | undefined {
-    return this.callSessions.get(callSid);
+  /**
+   * Generate audio URL using ElevenLabs (for future streaming implementation)
+   */
+  async generateVoiceAudio(text: string): Promise<Buffer | null> {
+    try {
+      // This would return audio buffer from ElevenLabs
+      // For now, we're using Twilio's built-in TTS
+      // return await this.elevenlabs.textToSpeech(text);
+      return null;
+    } catch (error) {
+      this.logger.error(`Failed to generate voice audio: ${error.message}`);
+      return null;
+    }
   }
 }

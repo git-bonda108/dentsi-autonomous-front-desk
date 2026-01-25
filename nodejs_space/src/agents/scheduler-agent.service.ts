@@ -204,9 +204,10 @@ export class SchedulerAgentService {
       if (!patient) {
         patient = await this.prisma.patient.create({
           data: {
+            clinic_id: clinicId,
             name: patientInfo.name || 'Unknown',
             phone: patientInfo.phone || '',
-            email: `${patientInfo.phone}@temp.dentra.ai`, // Temporary email
+            email: `${patientInfo.phone}@temp.dentsi.ai`, // Temporary email
             date_of_birth: patientInfo.dateOfBirth
               ? new Date(patientInfo.dateOfBirth)
               : null,
