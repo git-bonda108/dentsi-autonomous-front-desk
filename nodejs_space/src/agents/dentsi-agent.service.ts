@@ -488,10 +488,6 @@ export class DentsiAgentService {
       // Priority 2: Quote their last visit history
       else if (patientContext.lastVisitDate) {
         greeting += ` I see you were last in`;
-        if (patientContext.treatmentHistory && patientContext.treatmentHistory.length > 0) {
-          const lastTreatment = patientContext.treatmentHistory[0];
-          greeting += ` for a ${lastTreatment}`;
-        }
         greeting += ` - hope you've been doing well!`;
         
         // Check if due for cleaning

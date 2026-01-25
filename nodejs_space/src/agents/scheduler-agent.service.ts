@@ -211,7 +211,7 @@ export class SchedulerAgentService {
             date_of_birth: patientInfo.dateOfBirth
               ? new Date(patientInfo.dateOfBirth)
               : null,
-            insurance_info: patientInfo.insurance || null,
+            insurance_info: patientInfo.insuranceId || null,
           },
         });
         this.logger.log(`[SchedulerAgent] Created new patient: ${patient.id}`);

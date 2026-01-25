@@ -11,6 +11,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AIServicesModule } from '../ai-services/ai-services.module';
 import { ConversationModule } from '../conversation/conversation.module';
 import { SchedulingModule } from '../scheduling/scheduling.module';
+import { TriageModule } from '../triage/triage.module';
 import { MLModule } from '../ml/ml.module';
 
 /**
@@ -36,6 +37,7 @@ import { MLModule } from '../ml/ml.module';
     AIServicesModule,
     ConversationModule,
     SchedulingModule,
+    TriageModule,
     MLModule,
   ],
   providers: [
