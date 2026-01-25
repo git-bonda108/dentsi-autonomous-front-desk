@@ -115,7 +115,16 @@ export class ElevenLabsToolsController {
 
     try {
       const targetDate = body.date ? new Date(body.date) : new Date();
-      const clinicId = body.clinic_id || 'smilecare-dental';
+      
+      // Get default clinic if not specified
+      let clinicId = body.clinic_id;
+      if (!clinicId) {
+        const defaultClinic = await this.prisma.clinic.findFirst({
+          where: { is_active: true },
+          orderBy: { name: 'asc' },
+        });
+        clinicId = defaultClinic?.id;
+      }
 
       // Get doctors
       const doctors = await this.prisma.doctor.findMany({
@@ -212,7 +221,23 @@ export class ElevenLabsToolsController {
     this.logger.log(`✅ Booking appointment: ${JSON.stringify(body)}`);
 
     try {
-      const clinicId = body.clinic_id || 'smilecare-dental';
+      // Get default clinic if not specified
+      let clinicId = body.clinic_id;
+      if (!clinicId) {
+        const defaultClinic = await this.prisma.clinic.findFirst({
+          where: { is_active: true },
+          orderBy: { name: 'asc' },
+        });
+        clinicId = defaultClinic?.id;
+      }
+      
+      if (!clinicId) {
+        return {
+          success: false,
+          message: "No clinic found. Please contact staff directly.",
+        };
+      }
+      
       const phone = body.patient_phone.replace(/\D/g, '');
 
       // Find or create patient
@@ -310,7 +335,15 @@ export class ElevenLabsToolsController {
     this.logger.log(`📋 Getting services`);
 
     try {
-      const clinicId = body.clinic_id || 'smilecare-dental';
+      // Get default clinic if not specified
+      let clinicId = body.clinic_id;
+      if (!clinicId) {
+        const defaultClinic = await this.prisma.clinic.findFirst({
+          where: { is_active: true },
+          orderBy: { name: 'asc' },
+        });
+        clinicId = defaultClinic?.id;
+      }
 
       const services = await this.prisma.service.findMany({
         where: {
@@ -372,7 +405,22 @@ export class ElevenLabsToolsController {
     this.logger.log(`📝 Logging conversation: ${body.call_id}`);
 
     try {
-      const clinicId = body.clinic_id || 'smilecare-dental';
+      // Get default clinic if not specified
+      let clinicId = body.clinic_id;
+      if (!clinicId) {
+        const defaultClinic = await this.prisma.clinic.findFirst({
+          where: { is_active: true },
+          orderBy: { name: 'asc' },
+        });
+        clinicId = defaultClinic?.id;
+      }
+      
+      if (!clinicId) {
+        return {
+          success: false,
+          error: 'No clinic found',
+        };
+      }
 
       // Find patient
       const patient = await this.prisma.patient.findFirst({
@@ -383,7 +431,7 @@ export class ElevenLabsToolsController {
       const call = await this.prisma.call.create({
         data: {
           call_sid: body.call_id,
-          clinic_id: clinicId,
+          clinic_id: clinicId as string,
           patient_id: patient?.id,
           caller_phone: body.patient_phone,
           transcript: body.summary,
