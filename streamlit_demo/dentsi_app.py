@@ -1140,9 +1140,9 @@ with tab4:
         
         for call in filtered_calls[:15]:
             patient = call.get("patient") or {}
-            outcome = call.get("outcome", "unknown")
-            duration = call.get("duration", 0)
-            sentiment = call.get("sentiment_score", 0.5)
+            outcome = call.get("outcome") or "unknown"
+            duration = call.get("duration") or 0
+            sentiment = call.get("sentiment_score") or 0.5
             
             # Outcome color
             outcome_colors = {
