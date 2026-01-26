@@ -124,11 +124,12 @@ st.markdown("""
     
     .metric-card {
         background: linear-gradient(145deg, rgba(18, 26, 47, 0.95), rgba(11, 18, 32, 0.95));
-        border-radius: 16px;
-        padding: 18px 20px;
-        border: 1px solid rgba(108, 99, 255, 0.25);
+        border-radius: 20px;
+        padding: 24px 26px;
+        border: 2px solid rgba(108, 99, 255, 0.35);
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.03);
         transition: all 0.25s ease;
+        min-height: 140px;
     }
     
     .metric-card:hover {
@@ -136,10 +137,10 @@ st.markdown("""
         box-shadow: 0 12px 32px rgba(108, 99, 255, 0.25);
     }
     
-    .metric-icon { font-size: 20px; opacity: 0.9; }
-    .metric-label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #9CA3AF; margin-top: 6px; }
-    .metric-value { font-size: 28px; font-weight: 700; margin-top: 8px; color: #E5E7EB; }
-    .metric-sub { font-size: 12px; color: #6B7280; margin-top: 4px; }
+    .metric-icon { font-size: 28px; opacity: 0.9; }
+    .metric-label { font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: #9CA3AF; margin-top: 8px; font-weight: 600; }
+    .metric-value { font-size: 42px; font-weight: 900; margin-top: 10px; color: #E5E7EB; }
+    .metric-sub { font-size: 13px; color: #6B7280; margin-top: 6px; }
     
     /* HERO REVENUE CARD - Gold accent */
     .metric-card.revenue {
@@ -302,40 +303,54 @@ st.markdown("""
         animation: float 3s ease-in-out infinite;
     }
     
-    /* Tab styling - MUCH BIGGER, centered, standout */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 16px !important;
+    /* Tab styling - MUCH BIGGER with multiple selectors */
+    .stTabs [data-baseweb="tab-list"],
+    div[data-baseweb="tab-list"] {
+        gap: 20px !important;
         background: linear-gradient(145deg, #121A2F, #0B1220) !important;
-        padding: 20px 30px !important;
-        border-radius: 20px !important;
+        padding: 24px 36px !important;
+        border-radius: 24px !important;
         margin-bottom: 40px !important;
         justify-content: center !important;
-        border: 2px solid rgba(108, 99, 255, 0.4) !important;
+        border: 2px solid rgba(108, 99, 255, 0.5) !important;
         flex-wrap: wrap !important;
     }
     
-    .stTabs [data-baseweb="tab"] {
+    .stTabs [data-baseweb="tab"],
+    .stTabs button[role="tab"],
+    div[data-baseweb="tab-list"] button {
         background: transparent !important;
         color: #9CA3AF !important;
         font-weight: 800 !important;
-        font-size: 1.25rem !important;
-        padding: 18px 32px !important;
+        font-size: 1.15rem !important;
+        padding: 16px 28px !important;
         border-radius: 14px !important;
-        min-height: 60px !important;
+        min-height: 56px !important;
         transition: all 0.2s ease !important;
+        border: none !important;
     }
     
-    .stTabs [data-baseweb="tab"]:hover {
-        background: rgba(108, 99, 255, 0.2) !important;
+    .stTabs [data-baseweb="tab"]:hover,
+    .stTabs button[role="tab"]:hover,
+    div[data-baseweb="tab-list"] button:hover {
+        background: rgba(108, 99, 255, 0.25) !important;
         color: #E5E7EB !important;
-        transform: translateY(-2px) !important;
     }
     
-    .stTabs [aria-selected="true"] {
+    .stTabs [aria-selected="true"],
+    .stTabs button[aria-selected="true"],
+    div[data-baseweb="tab-list"] button[aria-selected="true"] {
         background: linear-gradient(135deg, #6C63FF, #8B7FFF) !important;
         color: #ffffff !important;
         box-shadow: 0 8px 20px rgba(108, 99, 255, 0.4) !important;
-        transform: translateY(-2px) !important;
+    }
+    
+    /* Tab text inside buttons */
+    .stTabs [data-baseweb="tab"] p,
+    .stTabs button[role="tab"] p,
+    div[data-baseweb="tab-list"] button p {
+        font-size: 1.15rem !important;
+        font-weight: 700 !important;
     }
     
     /* Input fields */
