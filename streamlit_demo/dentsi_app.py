@@ -349,41 +349,50 @@ st.markdown("""
     }
     
     /* =========================
-       TABS - CORRECT SELECTOR
+       TOP NAV / TABS – DENTSI
        ========================= */
     
+    /* Tabs container */
+    div[data-testid="stTabs"] {
+        margin-top: 1.2rem !important;
+    }
+    
+    /* Individual tab buttons */
     button[data-baseweb="tab"] {
         font-size: 1.2rem !important;
-        padding: 1rem 1.5rem !important;
-        font-weight: 700 !important;
-        color: #9CA3AF !important;
+        font-weight: 600 !important;
+        padding: 0.9rem 1.4rem !important;
+        line-height: 1.3 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.45rem !important;
+        color: #CBD5E1 !important;
         background: transparent !important;
         border: none !important;
-        border-radius: 12px !important;
+        border-radius: 10px !important;
         transition: all 0.2s ease !important;
     }
     
+    /* Hover state */
     button[data-baseweb="tab"]:hover {
-        background: rgba(108, 99, 255, 0.2) !important;
         color: #E5E7EB !important;
+        background: rgba(108, 99, 255, 0.15) !important;
     }
     
+    /* Active tab */
     button[data-baseweb="tab"][aria-selected="true"] {
-        background: #6C63FF !important;
-        color: #ffffff !important;
-        box-shadow: 0 4px 12px rgba(108, 99, 255, 0.4) !important;
+        color: #6C63FF !important;
+        border-bottom: 3px solid #6C63FF !important;
+        font-weight: 700 !important;
+        background: rgba(108, 99, 255, 0.1) !important;
     }
     
-    /* Tab container */
+    /* Tab list container */
     div[data-baseweb="tab-list"] {
-        gap: 16px !important;
-        background: linear-gradient(145deg, #121A2F, #0B1220) !important;
-        padding: 20px 28px !important;
-        border-radius: 20px !important;
-        margin-bottom: 32px !important;
-        justify-content: center !important;
-        border: 2px solid rgba(108, 99, 255, 0.4) !important;
-        flex-wrap: wrap !important;
+        gap: 0.8rem !important;
+        padding-bottom: 0.5rem !important;
+        border-bottom: 1px solid rgba(108, 99, 255, 0.2) !important;
+        margin-bottom: 24px !important;
     }
     
     /* Input fields */
@@ -677,15 +686,35 @@ def get_service_price(service_type):
             return price
     return 100
 
-# Mock doctors
-DOCTORS = [
-    {"name": "Dr. Emily Chen", "specialty": "General Dentistry", "clinic": "SmileCare Dental", "available": True, "appointments": 8, "revenue": 2400},
-    {"name": "Dr. Michael Roberts", "specialty": "Oral Surgery", "clinic": "SmileCare Dental", "available": True, "appointments": 5, "revenue": 7500},
-    {"name": "Dr. Sarah Kim", "specialty": "Pediatric Dentistry", "clinic": "SmileCare Dental", "available": False, "appointments": 6, "revenue": 1800},
-    {"name": "Dr. James Wilson", "specialty": "General Dentistry", "clinic": "Bright Teeth", "available": True, "appointments": 7, "revenue": 2100},
-    {"name": "Dr. Lisa Patel", "specialty": "Cosmetic Dentistry", "clinic": "Bright Teeth", "available": True, "appointments": 4, "revenue": 4800},
-    {"name": "Dr. Robert Martinez", "specialty": "Endodontics", "clinic": "Downtown Dental", "available": True, "appointments": 6, "revenue": 9000},
-]
+# Fetch doctors from API or use fallback
+@st.cache_data(ttl=30)
+def fetch_doctors():
+    try:
+        r = requests.get(f"{API_BASE}/admin/doctors", timeout=10)
+        if r.status_code == 200:
+            doctors = r.json()
+            # Transform to expected format
+            return [{
+                "name": d.get("name", "Unknown"),
+                "specialty": d.get("specialty", "General Dentistry"),
+                "clinic": d.get("clinic", {}).get("name", "Unknown Clinic") if d.get("clinic") else "Unknown Clinic",
+                "available": d.get("is_active", True),
+                "appointments": 5,  # Would need appointment count endpoint
+                "revenue": 2500  # Would need revenue endpoint
+            } for d in doctors]
+    except:
+        pass
+    # Fallback mock data
+    return [
+        {"name": "Dr. Emily Chen", "specialty": "General Dentistry", "clinic": "SmileCare Dental", "available": True, "appointments": 8, "revenue": 2400},
+        {"name": "Dr. Michael Roberts", "specialty": "Oral Surgery", "clinic": "SmileCare Dental", "available": True, "appointments": 5, "revenue": 7500},
+        {"name": "Dr. Sarah Kim", "specialty": "Pediatric Dentistry", "clinic": "SmileCare Dental", "available": False, "appointments": 6, "revenue": 1800},
+        {"name": "Dr. James Wilson", "specialty": "General Dentistry", "clinic": "Bright Teeth", "available": True, "appointments": 7, "revenue": 2100},
+        {"name": "Dr. Lisa Patel", "specialty": "Cosmetic Dentistry", "clinic": "Bright Teeth", "available": True, "appointments": 4, "revenue": 4800},
+        {"name": "Dr. Robert Martinez", "specialty": "Endodontics", "clinic": "Downtown Dental", "available": True, "appointments": 6, "revenue": 9000},
+    ]
+
+DOCTORS = fetch_doctors()
 
 # ============================================================================
 # SIDEBAR
@@ -1144,7 +1173,42 @@ with tab3:
         calls_list = []
     
     if calls_list:
-        st.markdown(f"**{len(calls_list)} Total Conversations**")
+        # Summary tiles
+        booked_calls = len([c for c in calls_list if c.get("outcome") == "booked"])
+        escalated_calls = len([c for c in calls_list if c.get("outcome") == "escalated"])
+        avg_sentiment = sum(c.get("sentiment_score", 0.5) for c in calls_list) / len(calls_list) if calls_list else 0.5
+        avg_duration = sum(c.get("duration", 0) for c in calls_list) / len(calls_list) if calls_list else 0
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.markdown(f"""
+            <div style="background: rgba(108, 99, 255, 0.15); border: 1px solid rgba(108, 99, 255, 0.4); border-radius: 12px; padding: 18px; text-align: center;">
+                <div style="font-size: 2rem; font-weight: 900; color: #6C63FF;">{len(calls_list)}</div>
+                <div style="color: #E5E7EB; font-size: 0.85rem; margin-top: 4px;">Total Calls</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"""
+            <div style="background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 12px; padding: 18px; text-align: center;">
+                <div style="font-size: 2rem; font-weight: 900; color: #22C55E;">{booked_calls}</div>
+                <div style="color: #E5E7EB; font-size: 0.85rem; margin-top: 4px;">Booked</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col3:
+            st.markdown(f"""
+            <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 12px; padding: 18px; text-align: center;">
+                <div style="font-size: 2rem; font-weight: 900; color: #F59E0B;">{int(avg_sentiment * 100)}%</div>
+                <div style="color: #E5E7EB; font-size: 0.85rem; margin-top: 4px;">Avg Sentiment</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col4:
+            st.markdown(f"""
+            <div style="background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.4); border-radius: 12px; padding: 18px; text-align: center;">
+                <div style="font-size: 2rem; font-weight: 900; color: #06B6D4;">{int(avg_duration)}s</div>
+                <div style="color: #E5E7EB; font-size: 0.85rem; margin-top: 4px;">Avg Duration</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
         st.markdown("<br>", unsafe_allow_html=True)
         
         # Filter options
@@ -1470,12 +1534,56 @@ with tab6:
 with tab7:
     st.markdown('<div class="section-header">🚨 Escalations & Alerts</div>', unsafe_allow_html=True)
     
+    # Try to fetch real escalations from calls with escalated outcome
+    try:
+        esc_resp = requests.get(f"{API_BASE}/calls?outcome=escalated", timeout=5)
+        real_escalations = esc_resp.json() if esc_resp.status_code == 200 else []
+    except:
+        real_escalations = []
+    
+    # Summary tiles
+    high_count = 1
+    medium_count = 1
+    low_count = 1
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(f"""
+        <div style="background: rgba(239, 68, 68, 0.15); border: 2px solid #EF4444; border-radius: 12px; padding: 20px; text-align: center;">
+            <div style="font-size: 2.2rem; font-weight: 900; color: #EF4444;">{high_count}</div>
+            <div style="color: #E5E7EB; font-size: 0.9rem; margin-top: 4px;">🔴 High Priority</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+        <div style="background: rgba(245, 158, 11, 0.15); border: 2px solid #F59E0B; border-radius: 12px; padding: 20px; text-align: center;">
+            <div style="font-size: 2.2rem; font-weight: 900; color: #F59E0B;">{medium_count}</div>
+            <div style="color: #E5E7EB; font-size: 0.9rem; margin-top: 4px;">🟡 Medium</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"""
+        <div style="background: rgba(108, 99, 255, 0.15); border: 2px solid #6C63FF; border-radius: 12px; padding: 20px; text-align: center;">
+            <div style="font-size: 2.2rem; font-weight: 900; color: #6C63FF;">{low_count}</div>
+            <div style="color: #E5E7EB; font-size: 0.9rem; margin-top: 4px;">🔵 Low</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col4:
+        st.markdown(f"""
+        <div style="background: rgba(34, 197, 94, 0.15); border: 2px solid #22C55E; border-radius: 12px; padding: 20px; text-align: center;">
+            <div style="font-size: 2.2rem; font-weight: 900; color: #22C55E;">{len(real_escalations)}</div>
+            <div style="color: #E5E7EB; font-size: 0.9rem; margin-top: 4px;">📞 From Calls</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("""
     <p style="color: #9CA3AF; margin-bottom: 20px;">
     Cases requiring human attention - AI has flagged these for follow-up
     </p>
     """, unsafe_allow_html=True)
     
+    # Demo escalations (would be replaced with real data when available)
     escalations = [
         {"id": 1, "patient": "Robert Taylor", "reason": "Billing question - needs payment plan discussion", "priority": "Medium", "time": "10 min ago", "phone": "+1 555-777-7777"},
         {"id": 2, "patient": "Unknown Caller", "reason": "Complex insurance - needs manual verification", "priority": "Low", "time": "25 min ago", "phone": "+1 555-000-0000"},
