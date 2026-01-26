@@ -16,6 +16,7 @@ import { PatientsModule } from './patients/patients.module';
 import { HealthModule } from './health/health.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ElevenLabsToolsModule } from './elevenlabs/elevenlabs-tools.module';
+import { AdminModule } from './admin/admin.module';
 
 /**
  * DENTSI - AI Voice Agent for Dental Appointment Automation
@@ -60,6 +61,9 @@ import { ElevenLabsToolsModule } from './elevenlabs/elevenlabs-tools.module';
     
     // ElevenLabs Integration
     ElevenLabsToolsModule,
+    
+    // Admin
+    AdminModule,
   ],
 })
 export class AppModule {}

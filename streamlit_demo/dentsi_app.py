@@ -24,7 +24,7 @@ import time
 # CONFIGURATION
 # ============================================================================
 
-API_BASE = "https://dentsi.abacusai.app"
+API_BASE = "https://dentsi-autonomous-front-desk.abacusai.app"
 TWILIO_NUMBER = "+1 (920) 891-4513"
 TWILIO_NUMBER_RAW = "+19208914513"
 
