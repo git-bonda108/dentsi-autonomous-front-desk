@@ -24,7 +24,7 @@ import time
 # CONFIGURATION
 # ============================================================================
 
-API_BASE = "https://dentsi-autonomous-front-desk.abacusai.app"
+API_BASE = "https://dentcognit.abacusai.app"
 TWILIO_NUMBER = "+1 (920) 891-4513"
 TWILIO_NUMBER_RAW = "+19208914513"
 
@@ -45,6 +45,8 @@ if 'conversation_history' not in st.session_state:
     st.session_state.conversation_history = []
 if 'selected_clinic_id' not in st.session_state:
     st.session_state.selected_clinic_id = None
+if 'selected_clinic_name' not in st.session_state:
+    st.session_state.selected_clinic_name = None
 
 # ============================================================================
 # PREMIUM CSS - High Contrast, Beautiful UI
@@ -638,76 +640,78 @@ with st.sidebar:
     # System status
     health = fetch_health()
     if health.get("status") == "ok":
-        st.success("🤖 AI Front Desk Active")
+        st.markdown("""
+        <div style="background: rgba(34, 197, 94, 0.15); border: 1px solid #22C55E; border-radius: 10px; padding: 12px; text-align: center;">
+            <span style="color: #22C55E; font-weight: 700;">🤖 Autonomous Front Desk Live</span>
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        st.warning("⚠️ Demo Mode")
+        st.warning("⚠️ Backend Offline")
     
     st.divider()
     
-    # Clinic selector
+    # Clinic selector - fetch from backend
     clinics = fetch_clinics()
-    clinic_names = ["All Clinics"] + [c.get("name", "Unknown") for c in clinics]
-    selected_clinic_name = st.selectbox("🏥 Select Clinic", clinic_names)
     
-    selected_clinic_id = None
-    if selected_clinic_name != "All Clinics":
+    st.markdown("### 🏥 Select Clinic")
+    if clinics:
+        clinic_names = [c.get("name", "Unknown") for c in clinics]
+        
+        # Default to first clinic if none selected
+        default_idx = 0
+        if st.session_state.selected_clinic_id:
+            for idx, c in enumerate(clinics):
+                if c.get("id") == st.session_state.selected_clinic_id:
+                    default_idx = idx
+                    break
+        
+        selected_clinic_name = st.selectbox(
+            "Active clinic for AI calls:",
+            clinic_names,
+            index=default_idx,
+            key="clinic_selector"
+        )
+        
+        # Store selected clinic info in session state
         for c in clinics:
             if c.get("name") == selected_clinic_name:
-                selected_clinic_id = c.get("id")
+                st.session_state.selected_clinic_id = c.get("id")
+                st.session_state.selected_clinic_name = c.get("name")
                 break
+        
+        selected_clinic_id = st.session_state.selected_clinic_id
+    else:
+        st.warning("No clinics found in database")
+        selected_clinic_name = "Demo Clinic"
+        selected_clinic_id = None
     
     st.divider()
     
     st.markdown("### 📞 Patient Line")
     st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+    <div style="background: linear-gradient(135deg, #6C63FF, #22C55E);
                 color: white; padding: 18px; border-radius: 14px;
                 text-align: center; font-size: 1.3rem; font-weight: 700;">
         {TWILIO_NUMBER}
     </div>
     """, unsafe_allow_html=True)
     
-    # Find which clinic has the Twilio number
-    assigned_clinic = None
-    for c in clinics:
-        if c.get("phone") == TWILIO_NUMBER_RAW:
-            assigned_clinic = c.get("name")
-            break
-    
-    if assigned_clinic:
-        st.success(f"📍 Assigned to: **{assigned_clinic}**")
+    # Show which clinic is selected for AI calls
+    if clinics and selected_clinic_name:
+        st.markdown(f"""
+        <div style="background: rgba(108, 99, 255, 0.15); border: 1px solid rgba(108, 99, 255, 0.4); 
+                    border-radius: 8px; padding: 10px; margin-top: 10px; text-align: center;">
+            <span style="color: #9CA3AF; font-size: 0.85rem;">AI answering as:</span><br>
+            <span style="color: #6C63FF; font-weight: 700;">{selected_clinic_name}</span>
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        st.warning("⚠️ Not assigned to any clinic")
+        st.warning("⚠️ No clinic configured")
     
     st.divider()
     
-    # Configure Twilio assignment
     st.markdown("### ⚙️ Configure")
-    if clinics:
-        clinic_options = [c.get("name") for c in clinics]
-        selected_for_twilio = st.selectbox(
-            "Assign phone to clinic:",
-            clinic_options,
-            index=clinic_options.index(assigned_clinic) if assigned_clinic in clinic_options else 0,
-            key="twilio_clinic"
-        )
-        
-        if st.button("💾 Save Assignment", use_container_width=True):
-            # Find clinic ID
-            for c in clinics:
-                if c.get("name") == selected_for_twilio:
-                    # This would need a PATCH endpoint - show instructions instead
-                    st.info(f"""
-                    **To assign to {selected_for_twilio}:**
-                    
-                    Run this SQL in Abacus console:
-                    ```sql
-                    UPDATE clinic 
-                    SET phone = '+19208914513' 
-                    WHERE name = '{selected_for_twilio}';
-                    ```
-                    """)
-                    break
+    st.caption("Select clinic above to configure which dental office the AI represents when answering calls.")
     
 
 # ============================================================================
@@ -817,12 +821,8 @@ with tab1:
     </div>
     """, unsafe_allow_html=True)
     
-    # Find assigned clinic
-    assigned_clinic_name = "SmileCare Dental"
-    for c in clinics:
-        if c.get("phone") == TWILIO_NUMBER_RAW:
-            assigned_clinic_name = c.get("name")
-            break
+    # Use selected clinic from sidebar
+    display_clinic_name = st.session_state.selected_clinic_name or "Select a clinic"
     
     # Big phone number - hero element
     st.markdown(f"""
@@ -832,7 +832,7 @@ with tab1:
             📞 {TWILIO_NUMBER}
         </div>
         <div style="display: inline-block; background: rgba(34, 197, 94, 0.2); border: 1px solid #22C55E; padding: 8px 20px; border-radius: 20px; color: #22C55E; font-weight: 600;">
-            📍 Routing to: {assigned_clinic_name}
+            📍 Routing to: {display_clinic_name}
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1503,7 +1503,7 @@ st.markdown(f"""
     </div>
     <div style="color: #64748b; font-size: 0.9rem; margin-top: 20px;">
         📞 {TWILIO_NUMBER} &nbsp;•&nbsp; 
-        <a href="{API_BASE}/api-docs" style="color: #8b5cf6;">API Docs</a>
+        <a href="https://dentcognit.abacusai.app/api-docs" target="_blank" style="color: #8b5cf6;">API Docs</a>
     </div>
     <div style="color: #475569; font-size: 0.8rem; margin-top: 15px; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
         <span style="display: flex; align-items: center; gap: 6px;">
