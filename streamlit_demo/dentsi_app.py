@@ -302,22 +302,24 @@ st.markdown("""
         animation: float 3s ease-in-out infinite;
     }
     
-    /* Tab styling - Bigger and better spaced */
+    /* Tab styling - Bigger, centered, standout */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background: #121A2F;
-        padding: 10px 12px;
-        border-radius: 12px;
-        margin-bottom: 20px;
+        gap: 12px;
+        background: linear-gradient(145deg, #121A2F, #0B1220);
+        padding: 16px 24px;
+        border-radius: 16px;
+        margin-bottom: 30px;
+        justify-content: center;
+        border: 1px solid rgba(108, 99, 255, 0.3);
     }
     
     .stTabs [data-baseweb="tab"] {
         background: transparent;
         color: #9CA3AF !important;
-        font-weight: 600;
-        font-size: 0.95rem;
-        padding: 12px 20px;
-        border-radius: 10px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        padding: 16px 28px;
+        border-radius: 12px;
     }
     
     .stTabs [data-baseweb="tab"]:hover {
@@ -805,8 +807,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 # TABS
 # ============================================================================
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-    "🎙️ Experience DENTSI",
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "📅 Appointments",
     "👥 Patients",
     "💬 Conversations",
@@ -817,89 +818,10 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
 ])
 
 # ============================================================================
-# TAB 1: TRY DEMO
+# TAB 1: APPOINTMENTS
 # ============================================================================
 
 with tab1:
-    # Big heading for Experience DENTSI
-    st.markdown("""
-    <div style="text-align: center; margin-bottom: 30px;">
-        <div style="font-size: 2.5rem; font-weight: 900; color: #6C63FF; margin-bottom: 10px;">
-            🎙️ Experience DENTSI Live!
-        </div>
-        <div style="font-size: 1.1rem; color: #9CA3AF;">
-            Call now and talk to your AI front desk assistant
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Use selected clinic from sidebar
-    display_clinic_name = st.session_state.selected_clinic_name or "Select a clinic"
-    
-    # Big phone number - hero element
-    st.markdown(f"""
-    <div style="text-align: center; padding: 40px 20px; background: linear-gradient(145deg, #121A2F, #0B1220); border: 2px solid #6C63FF; border-radius: 20px; margin-bottom: 30px;">
-        <div style="font-size: 1.2rem; color: #9CA3AF; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 2px;">Call Now to Experience DENTSI</div>
-        <div style="font-size: 3.5rem; font-weight: 900; color: #6C63FF; letter-spacing: 2px; margin-bottom: 15px;">
-            📞 {TWILIO_NUMBER}
-        </div>
-        <div style="display: inline-block; background: rgba(34, 197, 94, 0.2); border: 1px solid #22C55E; padding: 8px 20px; border-radius: 20px; color: #22C55E; font-weight: 600;">
-            📍 Routing to: {display_clinic_name}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Three column stats
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("⚡ Response Time", "~200ms")
-    with col2:
-        st.metric("🕐 Availability", "24/7")
-    with col3:
-        st.metric("📞 Call Capture", "100%")
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # How it works - horizontal
-    st.markdown("### ⚡ How It Works")
-    
-    hw_col1, hw_col2, hw_col3, hw_col4, hw_col5 = st.columns(5)
-    with hw_col1:
-        st.markdown("**1. Call**")
-        st.caption("Patient dials the number")
-    with hw_col2:
-        st.markdown("**2. AI Answers**")
-        st.caption("Instant pickup ~200ms")
-    with hw_col3:
-        st.markdown("**3. Understands**")
-        st.caption("Claude AI processes intent")
-    with hw_col4:
-        st.markdown("**4. Responds**")
-        st.caption("Natural voice via Bella")
-    with hw_col5:
-        st.markdown("**5. Books**")
-        st.caption("Saved to database")
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Features list
-    st.markdown("### ✨ What You'll Experience")
-    feat_col1, feat_col2 = st.columns(2)
-    with feat_col1:
-        st.markdown("✓ Natural voice conversation")
-        st.markdown("✓ Real-time speech recognition")
-        st.markdown("✓ Intelligent intent detection")
-    with feat_col2:
-        st.markdown("✓ AI-powered appointment booking")
-        st.markdown("✓ Insurance collection")
-        st.markdown("✓ Instant SMS confirmation")
-    
-
-# ============================================================================
-# TAB 2: APPOINTMENTS
-# ============================================================================
-
-with tab2:
     st.markdown('<div class="section-header">📅 Scheduled Appointments</div>', unsafe_allow_html=True)
     
     if booked_appointments:
@@ -1006,10 +928,10 @@ with tab2:
         """, unsafe_allow_html=True)
 
 # ============================================================================
-# TAB 3: PATIENTS
+# TAB 2: PATIENTS
 # ============================================================================
 
-with tab3:
+with tab2:
     st.markdown('<div class="section-header">👥 Patient Profiles</div>', unsafe_allow_html=True)
     
     # Fetch patients from API
@@ -1120,10 +1042,10 @@ with tab3:
                 """, unsafe_allow_html=True)
         
 # ============================================================================
-# TAB 4: CONVERSATIONS
+# TAB 3: CONVERSATIONS
 # ============================================================================
 
-with tab4:
+with tab3:
     st.markdown('<div class="section-header">💬 Conversation Summaries</div>', unsafe_allow_html=True)
     
     # Fetch call logs
@@ -1239,10 +1161,10 @@ Dentsi: Got it! You're all set for a cleaning on Tuesday, January 28th at 2pm. Y
             st.success("💰 **Revenue Impact:** Cleaning booked - Est. $120")
 
 # ============================================================================
-# TAB 5: DOCTORS
+# TAB 4: DOCTORS
 # ============================================================================
 
-with tab5:
+with tab4:
     st.markdown('<div class="section-header">👨‍⚕️ Doctors & Availability</div>', unsafe_allow_html=True)
     
     # Doctor tiles in rows of 3
@@ -1313,10 +1235,10 @@ with tab5:
         st.plotly_chart(fig, use_container_width=True)
 
 # ============================================================================
-# TAB 6: REVENUE
+# TAB 5: REVENUE
 # ============================================================================
 
-with tab6:
+with tab5:
     st.markdown('<div class="section-header">💰 Revenue Analytics</div>', unsafe_allow_html=True)
     
     total_doc_revenue = sum(d["revenue"] for d in DOCTORS)
@@ -1396,10 +1318,10 @@ with tab6:
         st.plotly_chart(fig, use_container_width=True)
 
 # ============================================================================
-# TAB 7: ANALYTICS
+# TAB 6: ANALYTICS
 # ============================================================================
 
-with tab7:
+with tab6:
     st.markdown('<div class="section-header">📊 Call Analytics</div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
@@ -1454,10 +1376,10 @@ with tab7:
         st.metric("🚨 Escalated", "4", "1%")
 
 # ============================================================================
-# TAB 8: ESCALATIONS
+# TAB 7: ESCALATIONS
 # ============================================================================
 
-with tab8:
+with tab7:
     st.markdown('<div class="section-header">🚨 Escalations & Alerts</div>', unsafe_allow_html=True)
     
     st.markdown("""
