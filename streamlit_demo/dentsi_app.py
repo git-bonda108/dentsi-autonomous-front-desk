@@ -570,7 +570,7 @@ def fetch_stats(clinic_id=None):
         return {}
 
 @st.cache_data(ttl=30)
-def fetch_appointments(clinic_id=None, limit=50):
+def fetch_appointments(clinic_id=None, limit=200):
     try:
         url = f"{API_BASE}/api/dashboard/appointments?limit={limit}"
         if clinic_id:
