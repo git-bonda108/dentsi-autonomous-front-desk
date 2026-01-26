@@ -207,6 +207,13 @@ For pain, swelling, broken tooth:
 - "Anything else I can help with today?"
 - End warmly: "Thanks so much for calling [clinic_name]! Have a great day!"
 
+**IMPORTANT**: Before ending, ALWAYS call `log_conversation` with:
+- patient_phone
+- summary of what happened
+- outcome (booked, inquiry_answered, escalated, cancelled)
+- appointment_booked (true/false)
+- sentiment (positive, neutral, negative)
+
 ---
 
 ## ABSOLUTE RULES
@@ -231,10 +238,68 @@ For pain, swelling, broken tooth:
 5. **Dynamic Variables**: 
    - `clinic_name` = `{{clinic_name}}` (fallback - actual value comes from tools)
 
-6. **Tools** (4 webhooks):
+6. **Tools** (5 webhooks):
    | Tool | URL | Method |
    |------|-----|--------|
    | lookup_patient | https://dentcognit.abacusai.app/elevenlabs/tools/lookup-patient | POST |
    | check_availability | https://dentcognit.abacusai.app/elevenlabs/tools/check-availability | POST |
    | book_appointment | https://dentcognit.abacusai.app/elevenlabs/tools/book-appointment | POST |
    | get_services | https://dentcognit.abacusai.app/elevenlabs/tools/get-services | POST |
+   | log_conversation | https://dentcognit.abacusai.app/elevenlabs/tools/log-conversation | POST |
+
+---
+
+## Tool 5: log_conversation (ADD THIS IN ELEVENLABS)
+
+**IMPORTANT**: This tool must be called at the END of every call to log the conversation.
+
+```json
+{
+  "type": "webhook",
+  "name": "log_conversation",
+  "description": "Log the conversation summary at the end of the call. ALWAYS call this before ending.",
+  "response_timeout_secs": 20,
+  "api_schema": {
+    "url": "https://dentcognit.abacusai.app/elevenlabs/tools/log-conversation",
+    "method": "POST",
+    "request_body_schema": {
+      "type": "object",
+      "properties": {
+        "call_id": {
+          "type": "string",
+          "description": "Unique call identifier"
+        },
+        "patient_phone": {
+          "type": "string",
+          "description": "Patient phone number"
+        },
+        "patient_name": {
+          "type": "string",
+          "description": "Patient name if known"
+        },
+        "summary": {
+          "type": "string",
+          "description": "Brief summary of what happened in the call"
+        },
+        "outcome": {
+          "type": "string",
+          "description": "Call outcome: booked, inquiry_answered, escalated, cancelled"
+        },
+        "duration_seconds": {
+          "type": "number",
+          "description": "Approximate call duration in seconds"
+        },
+        "appointment_booked": {
+          "type": "boolean",
+          "description": "Whether an appointment was booked"
+        },
+        "sentiment": {
+          "type": "string",
+          "description": "Patient sentiment: positive, neutral, negative"
+        }
+      },
+      "required": ["patient_phone", "summary", "outcome", "appointment_booked"]
+    }
+  }
+}
+```
