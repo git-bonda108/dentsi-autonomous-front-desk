@@ -1,5 +1,6 @@
 import { Controller, Post, Body, Logger, HttpCode } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { demoConfig } from '../config/demo-config';
 
 /**
  * ElevenLabs Tools Controller
@@ -25,6 +26,35 @@ export class ElevenLabsToolsController {
     this.logger.log(`🔍 Looking up patient: ${body.phone}`);
 
     try {
+      // Get clinic info - check active clinic first (set via Streamlit demo)
+      let clinic = null;
+      if (body.clinic_id) {
+        clinic = await this.prisma.clinic.findUnique({
+          where: { id: body.clinic_id },
+        });
+      }
+      // Check demo config for active clinic
+      if (!clinic && demoConfig.getActiveClinicId()) {
+        clinic = await this.prisma.clinic.findUnique({
+          where: { id: demoConfig.getActiveClinicId() },
+        });
+      }
+      // Fallback to first active clinic
+      if (!clinic) {
+        clinic = await this.prisma.clinic.findFirst({
+          where: { is_active: true },
+          orderBy: { name: 'asc' },
+        });
+      }
+
+      const clinicContext = clinic ? {
+        clinic_id: clinic.id,
+        clinic_name: clinic.name,
+        clinic_phone: clinic.phone,
+        clinic_address: clinic.address,
+        clinic_hours: clinic.hours,
+      } : null;
+
       // Normalize phone number
       const phone = body.phone.replace(/\D/g, '');
       const phoneVariants = [
@@ -50,8 +80,9 @@ export class ElevenLabsToolsController {
       if (!patient) {
         return {
           is_new_patient: true,
-          message: "This is a new patient. Welcome them warmly: 'Looks like this is your first time calling us - welcome! You're in great hands!'",
+          message: `Welcome to ${clinic?.name || 'our office'}! This is your first time calling - you're in great hands!`,
           patient: null,
+          ...clinicContext,
         };
       }
 
@@ -88,6 +119,7 @@ export class ElevenLabsToolsController {
         message: upcomingAppointments.length > 0
           ? `Welcome back ${patient.name.split(' ')[0]}! You have an upcoming ${upcomingAppointments[0].service_type} on ${new Date(upcomingAppointments[0].appointment_date).toLocaleDateString()}.`
           : `Welcome back ${patient.name.split(' ')[0]}! Great to hear from you again.`,
+        ...clinicContext,
       };
     } catch (error) {
       this.logger.error(`Error looking up patient: ${error.message}`);
@@ -116,15 +148,25 @@ export class ElevenLabsToolsController {
     try {
       const targetDate = body.date ? new Date(body.date) : new Date();
       
-      // Get default clinic if not specified
-      let clinicId = body.clinic_id;
-      if (!clinicId) {
-        const defaultClinic = await this.prisma.clinic.findFirst({
+      // Get clinic info - check demo config first
+      let clinic = null;
+      if (body.clinic_id) {
+        clinic = await this.prisma.clinic.findUnique({
+          where: { id: body.clinic_id },
+        });
+      }
+      if (!clinic && demoConfig.getActiveClinicId()) {
+        clinic = await this.prisma.clinic.findUnique({
+          where: { id: demoConfig.getActiveClinicId() },
+        });
+      }
+      if (!clinic) {
+        clinic = await this.prisma.clinic.findFirst({
           where: { is_active: true },
           orderBy: { name: 'asc' },
         });
-        clinicId = defaultClinic?.id;
       }
+      const clinicId = clinic?.id;
 
       // Get doctors
       const doctors = await this.prisma.doctor.findMany({
@@ -181,12 +223,13 @@ export class ElevenLabsToolsController {
       const availableSlots = slots.slice(0, 5);
 
       return {
+        clinic_name: clinic?.name || 'our office',
         date: targetDate.toISOString().split('T')[0],
         day_of_week: targetDate.toLocaleDateString('en-US', { weekday: 'long' }),
         available_slots: availableSlots,
         total_available: slots.length,
         message: availableSlots.length > 0
-          ? `I have ${availableSlots.length} slots available. The first one is ${availableSlots[0].formatted}.`
+          ? `I have ${availableSlots.length} slots available at ${clinic?.name || 'our office'}. The first one is ${availableSlots[0].formatted}.`
           : `No slots available on ${targetDate.toLocaleDateString()}. Would you like to try another day?`,
       };
     } catch (error) {

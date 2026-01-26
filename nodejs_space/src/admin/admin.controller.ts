@@ -1,5 +1,6 @@
-import { Controller, Post, Get, Logger, HttpCode } from '@nestjs/common';
+import { Controller, Post, Get, Body, Logger, HttpCode } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { demoConfig } from '../config/demo-config';
 
 /**
  * Admin Controller
@@ -10,6 +11,77 @@ export class AdminController {
   private readonly logger = new Logger(AdminController.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Set the active clinic for demo purposes
+   * This is used by Streamlit to control which clinic the AI represents
+   */
+  @Post('set-active-clinic')
+  @HttpCode(200)
+  async setActiveClinic(@Body() body: { clinic_id: string }) {
+    this.logger.log(`🏥 Setting active clinic: ${body.clinic_id}`);
+    
+    const clinic = await this.prisma.clinic.findUnique({
+      where: { id: body.clinic_id },
+    });
+    
+    if (!clinic) {
+      return { success: false, error: 'Clinic not found' };
+    }
+    
+    demoConfig.setActiveClinic(body.clinic_id);
+    
+    return {
+      success: true,
+      active_clinic: {
+        id: clinic.id,
+        name: clinic.name,
+        phone: clinic.phone,
+        address: clinic.address,
+      },
+      message: `AI agent will now represent ${clinic.name}`,
+    };
+  }
+
+  /**
+   * Get the current active clinic for demos
+   */
+  @Get('active-clinic')
+  async getActiveClinic() {
+    let clinic = null;
+    const activeId = demoConfig.getActiveClinicId();
+    
+    if (activeId) {
+      clinic = await this.prisma.clinic.findUnique({
+        where: { id: activeId },
+      });
+    }
+    
+    // Default to first active clinic if none set
+    if (!clinic) {
+      clinic = await this.prisma.clinic.findFirst({
+        where: { is_active: true },
+        orderBy: { name: 'asc' },
+      });
+      if (clinic) {
+        demoConfig.setActiveClinic(clinic.id);
+      }
+    }
+    
+    if (!clinic) {
+      return { active_clinic: null, message: 'No clinics configured' };
+    }
+    
+    return {
+      active_clinic: {
+        id: clinic.id,
+        name: clinic.name,
+        phone: clinic.phone,
+        address: clinic.address,
+        hours: clinic.hours,
+      },
+    };
+  }
 
   /**
    * Seed doctors for all clinics

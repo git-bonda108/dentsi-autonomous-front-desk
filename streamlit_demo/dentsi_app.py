@@ -672,11 +672,23 @@ with st.sidebar:
             key="clinic_selector"
         )
         
-        # Store selected clinic info in session state
+        # Store selected clinic info in session state and notify backend
         for c in clinics:
             if c.get("name") == selected_clinic_name:
-                st.session_state.selected_clinic_id = c.get("id")
-                st.session_state.selected_clinic_name = c.get("name")
+                new_clinic_id = c.get("id")
+                # Only update if changed
+                if new_clinic_id != st.session_state.selected_clinic_id:
+                    st.session_state.selected_clinic_id = new_clinic_id
+                    st.session_state.selected_clinic_name = c.get("name")
+                    # Notify backend of active clinic change for AI calls
+                    try:
+                        requests.post(
+                            f"{API_BASE}/admin/set-active-clinic",
+                            json={"clinic_id": new_clinic_id},
+                            timeout=5
+                        )
+                    except:
+                        pass
                 break
         
         selected_clinic_id = st.session_state.selected_clinic_id
