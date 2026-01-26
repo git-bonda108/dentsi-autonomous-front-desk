@@ -924,8 +924,9 @@ st.markdown("<br>", unsafe_allow_html=True)
 # TABS
 # ============================================================================
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "📅 Appointments",
+    "📆 Calendar",
     "👥 Patients",
     "💬 Conversations",
     "👨‍⚕️ Doctors",
@@ -1045,10 +1046,212 @@ with tab1:
         """, unsafe_allow_html=True)
 
 # ============================================================================
-# TAB 2: PATIENTS
+# TAB 2: CALENDAR VIEW
 # ============================================================================
 
 with tab2:
+    st.markdown('<div class="section-header">📆 Appointment Calendar</div>', unsafe_allow_html=True)
+    
+    # Calendar CSS
+    st.markdown("""
+    <style>
+    @keyframes calendar-pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+    }
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 8px;
+        margin-top: 20px;
+    }
+    .calendar-header {
+        background: linear-gradient(135deg, #6C63FF, #8B7FFF);
+        color: white;
+        padding: 12px;
+        text-align: center;
+        font-weight: 700;
+        border-radius: 8px;
+        font-size: 0.9rem;
+    }
+    .calendar-day {
+        background: linear-gradient(145deg, #121A2F, #1a2540);
+        border: 1px solid rgba(108, 99, 255, 0.2);
+        border-radius: 12px;
+        min-height: 120px;
+        padding: 10px;
+        transition: all 0.3s ease;
+    }
+    .calendar-day:hover {
+        border-color: #6C63FF;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(108, 99, 255, 0.2);
+    }
+    .calendar-day-num {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #9CA3AF;
+        margin-bottom: 8px;
+    }
+    .calendar-day-today {
+        background: linear-gradient(145deg, rgba(108, 99, 255, 0.2), rgba(108, 99, 255, 0.1));
+        border: 2px solid #6C63FF;
+    }
+    .calendar-day-today .calendar-day-num {
+        color: #6C63FF;
+    }
+    .calendar-apt {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(34, 197, 94, 0.1));
+        border-left: 3px solid #22C55E;
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-bottom: 6px;
+        font-size: 0.75rem;
+        color: #E5E7EB;
+        animation: calendar-pulse 3s ease-in-out infinite;
+    }
+    .calendar-apt-cleaning { border-left-color: #22C55E; background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(34, 197, 94, 0.1)); }
+    .calendar-apt-crown { border-left-color: #FACC15; background: linear-gradient(135deg, rgba(250, 204, 21, 0.3), rgba(250, 204, 21, 0.1)); }
+    .calendar-apt-extraction { border-left-color: #EF4444; background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(239, 68, 68, 0.1)); }
+    .calendar-apt-whitening { border-left-color: #06B6D4; background: linear-gradient(135deg, rgba(6, 182, 212, 0.3), rgba(6, 182, 212, 0.1)); }
+    .calendar-apt-canal { border-left-color: #F59E0B; background: linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(245, 158, 11, 0.1)); }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Revenue per chair summary
+    num_chairs = 5
+    chair_revenue = total_revenue // num_chairs if total_revenue > 0 else 0
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #6C63FF, #8B7FFF); border-radius: 16px; padding: 20px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 900; color: white;">{len(booked_appointments)}</div>
+            <div style="color: rgba(255,255,255,0.9); font-size: 0.9rem;">This Week</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #22C55E, #16A34A); border-radius: 16px; padding: 20px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 900; color: white;">${total_revenue:,}</div>
+            <div style="color: rgba(255,255,255,0.9); font-size: 0.9rem;">Total Revenue</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #FACC15, #EAB308); border-radius: 16px; padding: 20px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 900; color: #0B1220;">${chair_revenue:,}</div>
+            <div style="color: rgba(11,18,32,0.8); font-size: 0.9rem;">Per Chair</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col4:
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #06B6D4, #0891B2); border-radius: 16px; padding: 20px; text-align: center;">
+            <div style="font-size: 2rem; font-weight: 900; color: white;">{num_chairs}</div>
+            <div style="color: rgba(255,255,255,0.9); font-size: 0.9rem;">Active Chairs</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Build calendar
+    from datetime import datetime, timedelta
+    import calendar
+    
+    today = datetime.now()
+    current_month = today.month
+    current_year = today.year
+    
+    # Get appointments grouped by date
+    apt_by_date = {}
+    for apt in booked_appointments:
+        date_str = apt.get("appointment_date", "")[:10] if apt.get("appointment_date") else ""
+        if date_str:
+            if date_str not in apt_by_date:
+                apt_by_date[date_str] = []
+            patient = apt.get("patient") or {}
+            service = apt.get("service_type", "Appointment")
+            apt_by_date[date_str].append({
+                "patient": patient.get("name", "Unknown")[:15],
+                "phone": patient.get("phone", "")[-4:] if patient.get("phone") else "",
+                "service": service[:12],
+                "price": get_service_price(service)
+            })
+    
+    # Calendar header
+    st.markdown(f"### {calendar.month_name[current_month]} {current_year}")
+    
+    # Day headers
+    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    header_html = '<div class="calendar-grid">'
+    for day in days:
+        header_html += f'<div class="calendar-header">{day}</div>'
+    header_html += '</div>'
+    st.markdown(header_html, unsafe_allow_html=True)
+    
+    # Get calendar data
+    cal = calendar.Calendar(firstweekday=0)
+    month_days = cal.monthdayscalendar(current_year, current_month)
+    
+    # Render calendar weeks
+    for week in month_days:
+        week_html = '<div class="calendar-grid">'
+        for day in week:
+            if day == 0:
+                week_html += '<div class="calendar-day" style="opacity: 0.3;"></div>'
+            else:
+                date_str = f"{current_year}-{current_month:02d}-{day:02d}"
+                is_today = (day == today.day and current_month == today.month)
+                day_class = "calendar-day calendar-day-today" if is_today else "calendar-day"
+                
+                week_html += f'<div class="{day_class}">'
+                week_html += f'<div class="calendar-day-num">{day}</div>'
+                
+                # Add appointments for this day
+                if date_str in apt_by_date:
+                    for apt in apt_by_date[date_str][:3]:  # Max 3 per day
+                        service_lower = apt["service"].lower()
+                        apt_class = "calendar-apt"
+                        if "clean" in service_lower:
+                            apt_class += " calendar-apt-cleaning"
+                        elif "crown" in service_lower:
+                            apt_class += " calendar-apt-crown"
+                        elif "extract" in service_lower:
+                            apt_class += " calendar-apt-extraction"
+                        elif "whiten" in service_lower:
+                            apt_class += " calendar-apt-whitening"
+                        elif "canal" in service_lower:
+                            apt_class += " calendar-apt-canal"
+                        
+                        week_html += f'''<div class="{apt_class}">
+                            <div style="font-weight: 600;">{apt["patient"]}</div>
+                            <div style="opacity: 0.8;">{apt["service"]} · ${apt["price"]}</div>
+                        </div>'''
+                    
+                    if len(apt_by_date[date_str]) > 3:
+                        week_html += f'<div style="color: #6C63FF; font-size: 0.7rem; text-align: center;">+{len(apt_by_date[date_str]) - 3} more</div>'
+                
+                week_html += '</div>'
+        week_html += '</div>'
+        st.markdown(week_html, unsafe_allow_html=True)
+    
+    # Legend
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
+        <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 12px; height: 12px; background: #22C55E; border-radius: 3px;"></div><span style="color: #9CA3AF; font-size: 0.85rem;">Cleaning</span></div>
+        <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 12px; height: 12px; background: #FACC15; border-radius: 3px;"></div><span style="color: #9CA3AF; font-size: 0.85rem;">Crown</span></div>
+        <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 12px; height: 12px; background: #EF4444; border-radius: 3px;"></div><span style="color: #9CA3AF; font-size: 0.85rem;">Extraction</span></div>
+        <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 12px; height: 12px; background: #06B6D4; border-radius: 3px;"></div><span style="color: #9CA3AF; font-size: 0.85rem;">Whitening</span></div>
+        <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 12px; height: 12px; background: #F59E0B; border-radius: 3px;"></div><span style="color: #9CA3AF; font-size: 0.85rem;">Root Canal</span></div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ============================================================================
+# TAB 3: PATIENTS
+# ============================================================================
+
+with tab3:
     st.markdown('<div class="section-header">👥 Patient Profiles</div>', unsafe_allow_html=True)
     
     # Fetch patients from API
@@ -1159,10 +1362,10 @@ with tab2:
                 """, unsafe_allow_html=True)
         
 # ============================================================================
-# TAB 3: CONVERSATIONS
+# TAB 4: CONVERSATIONS
 # ============================================================================
 
-with tab3:
+with tab4:
     st.markdown('<div class="section-header">💬 Conversation Summaries</div>', unsafe_allow_html=True)
     
     # Fetch call logs
@@ -1313,10 +1516,10 @@ Dentsi: Got it! You're all set for a cleaning on Tuesday, January 28th at 2pm. Y
             st.success("💰 **Revenue Impact:** Cleaning booked - Est. $120")
 
 # ============================================================================
-# TAB 4: DOCTORS
+# TAB 5: DOCTORS
 # ============================================================================
 
-with tab4:
+with tab5:
     st.markdown('<div class="section-header">👨‍⚕️ Doctors & Availability</div>', unsafe_allow_html=True)
     
     # Doctor tiles in rows of 3
@@ -1387,10 +1590,10 @@ with tab4:
         st.plotly_chart(fig, use_container_width=True)
 
 # ============================================================================
-# TAB 5: REVENUE
+# TAB 6: REVENUE
 # ============================================================================
 
-with tab5:
+with tab6:
     st.markdown('<div class="section-header">💰 Revenue Analytics</div>', unsafe_allow_html=True)
     
     total_doc_revenue = sum(d["revenue"] for d in DOCTORS)
@@ -1470,10 +1673,10 @@ with tab5:
         st.plotly_chart(fig, use_container_width=True)
 
 # ============================================================================
-# TAB 6: ANALYTICS
+# TAB 7: ANALYTICS
 # ============================================================================
 
-with tab6:
+with tab7:
     st.markdown('<div class="section-header">📊 Call Analytics</div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
@@ -1528,10 +1731,10 @@ with tab6:
         st.metric("🚨 Escalated", "4", "1%")
 
 # ============================================================================
-# TAB 7: ESCALATIONS
+# TAB 8: ESCALATIONS
 # ============================================================================
 
-with tab7:
+with tab8:
     st.markdown('<div class="section-header">🚨 Escalations & Alerts</div>', unsafe_allow_html=True)
     
     # Try to fetch real escalations from calls with escalated outcome
