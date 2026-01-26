@@ -1176,8 +1176,8 @@ with tab3:
         # Summary tiles
         booked_calls = len([c for c in calls_list if c.get("outcome") == "booked"])
         escalated_calls = len([c for c in calls_list if c.get("outcome") == "escalated"])
-        avg_sentiment = sum(c.get("sentiment_score", 0.5) for c in calls_list) / len(calls_list) if calls_list else 0.5
-        avg_duration = sum(c.get("duration", 0) for c in calls_list) / len(calls_list) if calls_list else 0
+        avg_sentiment = sum((c.get("sentiment_score") or 0.5) for c in calls_list) / len(calls_list) if calls_list else 0.5
+        avg_duration = sum((c.get("duration") or 0) for c in calls_list) / len(calls_list) if calls_list else 0
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
