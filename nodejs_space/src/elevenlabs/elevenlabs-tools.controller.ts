@@ -264,22 +264,32 @@ export class ElevenLabsToolsController {
     this.logger.log(`✅ Booking appointment: ${JSON.stringify(body)}`);
 
     try {
-      // Get default clinic if not specified
-      let clinicId = body.clinic_id;
-      if (!clinicId) {
-        const defaultClinic = await this.prisma.clinic.findFirst({
+      // Get clinic - check demo config first
+      let clinic = null;
+      if (body.clinic_id) {
+        clinic = await this.prisma.clinic.findUnique({
+          where: { id: body.clinic_id },
+        });
+      }
+      if (!clinic && demoConfig.getActiveClinicId()) {
+        clinic = await this.prisma.clinic.findUnique({
+          where: { id: demoConfig.getActiveClinicId() },
+        });
+      }
+      if (!clinic) {
+        clinic = await this.prisma.clinic.findFirst({
           where: { is_active: true },
           orderBy: { name: 'asc' },
         });
-        clinicId = defaultClinic?.id;
       }
       
-      if (!clinicId) {
+      if (!clinic) {
         return {
           success: false,
           message: "No clinic found. Please contact staff directly.",
         };
       }
+      const clinicId = clinic.id;
       
       const phone = body.patient_phone.replace(/\D/g, '');
 
@@ -346,17 +356,35 @@ export class ElevenLabsToolsController {
         day: 'numeric',
       });
 
+      const firstName = patient.name.split(' ')[0];
+      const hasEmail = !!body.patient_email;
+      
       return {
         success: true,
         appointment_id: appointment.id,
         patient_id: patient.id,
         patient_name: patient.name,
+        patient_first_name: firstName,
+        patient_email: body.patient_email || null,
+        email_sent: hasEmail,
         service: body.service_type,
         date: formattedDate,
         time: body.time,
         doctor_name: appointment.doctor?.name || 'Our team',
-        message: `Your ${body.service_type} appointment is confirmed for ${formattedDate} at ${body.time} with ${appointment.doctor?.name || 'our team'}. You'll receive a text confirmation shortly!`,
-        confirmation_message: `All set! ${patient.name.split(' ')[0]}, you're booked for ${body.service_type} on ${formattedDate} at ${body.time}. We're looking forward to seeing you!`,
+        clinic_name: clinic.name,
+        insurance_provider: body.insurance_provider || null,
+        message: hasEmail 
+          ? `${firstName}, you're all set! Your ${body.service_type} at ${clinic.name} is confirmed for ${formattedDate} at ${body.time}. A confirmation email has been sent to ${body.patient_email}.`
+          : `${firstName}, you're all booked! Your ${body.service_type} at ${clinic.name} is confirmed for ${formattedDate} at ${body.time}. We have you in our system and you'll get a text reminder.`,
+        confirmation_details: {
+          patient: firstName,
+          service: body.service_type,
+          clinic: clinic.name,
+          date: formattedDate,
+          time: body.time,
+          doctor: appointment.doctor?.name || 'Our team',
+          insurance: body.insurance_provider || 'Not provided',
+        },
       };
     } catch (error) {
       this.logger.error(`Error booking appointment: ${error.message}`);
@@ -378,19 +406,28 @@ export class ElevenLabsToolsController {
     this.logger.log(`📋 Getting services`);
 
     try {
-      // Get default clinic if not specified
-      let clinicId = body.clinic_id;
-      if (!clinicId) {
-        const defaultClinic = await this.prisma.clinic.findFirst({
+      // Get clinic - check demo config first
+      let clinic = null;
+      if (body.clinic_id) {
+        clinic = await this.prisma.clinic.findUnique({
+          where: { id: body.clinic_id },
+        });
+      }
+      if (!clinic && demoConfig.getActiveClinicId()) {
+        clinic = await this.prisma.clinic.findUnique({
+          where: { id: demoConfig.getActiveClinicId() },
+        });
+      }
+      if (!clinic) {
+        clinic = await this.prisma.clinic.findFirst({
           where: { is_active: true },
           orderBy: { name: 'asc' },
         });
-        clinicId = defaultClinic?.id;
       }
 
       const services = await this.prisma.service.findMany({
         where: {
-          clinic_id: clinicId,
+          clinic_id: clinic?.id,
           is_active: true,
         },
         orderBy: { service_name: 'asc' },
@@ -399,6 +436,7 @@ export class ElevenLabsToolsController {
       if (services.length === 0) {
         // Return default services
         return {
+          clinic_name: clinic?.name || 'our office',
           services: [
             { name: 'Dental Cleaning', price: 120, duration: 45 },
             { name: 'Routine Checkup', price: 85, duration: 30 },
@@ -413,6 +451,7 @@ export class ElevenLabsToolsController {
       }
 
       return {
+        clinic_name: clinic?.name || 'our office',
         services: services.map(s => ({
           name: s.service_name,
           price: s.price,
