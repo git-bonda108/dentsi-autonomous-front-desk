@@ -302,34 +302,40 @@ st.markdown("""
         animation: float 3s ease-in-out infinite;
     }
     
-    /* Tab styling - Bigger, centered, standout */
+    /* Tab styling - MUCH BIGGER, centered, standout */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 12px;
-        background: linear-gradient(145deg, #121A2F, #0B1220);
-        padding: 16px 24px;
-        border-radius: 16px;
-        margin-bottom: 30px;
-        justify-content: center;
-        border: 1px solid rgba(108, 99, 255, 0.3);
+        gap: 16px !important;
+        background: linear-gradient(145deg, #121A2F, #0B1220) !important;
+        padding: 20px 30px !important;
+        border-radius: 20px !important;
+        margin-bottom: 40px !important;
+        justify-content: center !important;
+        border: 2px solid rgba(108, 99, 255, 0.4) !important;
+        flex-wrap: wrap !important;
     }
     
     .stTabs [data-baseweb="tab"] {
-        background: transparent;
+        background: transparent !important;
         color: #9CA3AF !important;
-        font-weight: 700;
-        font-size: 1.1rem;
-        padding: 16px 28px;
-        border-radius: 12px;
+        font-weight: 800 !important;
+        font-size: 1.25rem !important;
+        padding: 18px 32px !important;
+        border-radius: 14px !important;
+        min-height: 60px !important;
+        transition: all 0.2s ease !important;
     }
     
     .stTabs [data-baseweb="tab"]:hover {
-        background: rgba(108, 99, 255, 0.15);
+        background: rgba(108, 99, 255, 0.2) !important;
         color: #E5E7EB !important;
+        transform: translateY(-2px) !important;
     }
     
     .stTabs [aria-selected="true"] {
-        background: #6C63FF !important;
+        background: linear-gradient(135deg, #6C63FF, #8B7FFF) !important;
         color: #ffffff !important;
+        box-shadow: 0 8px 20px rgba(108, 99, 255, 0.4) !important;
+        transform: translateY(-2px) !important;
     }
     
     /* Input fields */
@@ -345,11 +351,25 @@ st.markdown("""
         border-color: #6C63FF !important;
     }
     
-    /* Selectbox */
+    /* Selectbox - Bigger and clearer */
     .stSelectbox > div > div {
         background: #121A2F !important;
-        border: 1px solid rgba(108, 99, 255, 0.3) !important;
+        border: 2px solid rgba(108, 99, 255, 0.4) !important;
         color: #E5E7EB !important;
+        font-size: 1.1rem !important;
+        padding: 8px !important;
+        border-radius: 10px !important;
+    }
+    
+    .stSelectbox > div > div:hover {
+        border-color: #6C63FF !important;
+    }
+    
+    .stSelectbox label {
+        font-size: 1.05rem !important;
+        font-weight: 600 !important;
+        color: #E5E7EB !important;
+        margin-bottom: 8px !important;
     }
     
     /* Dataframe - Enhanced Visibility */
@@ -655,7 +675,12 @@ with st.sidebar:
     # Clinic selector - fetch from backend
     clinics = fetch_clinics()
     
-    st.markdown("### 🏥 Select Clinic")
+    st.markdown("""
+    <div style="font-size: 1.3rem; font-weight: 800; color: #E5E7EB; margin-bottom: 16px;">
+        🏥 Select Clinic
+    </div>
+    """, unsafe_allow_html=True)
+    
     if clinics:
         clinic_names = [c.get("name", "Unknown") for c in clinics]
         
@@ -668,7 +693,7 @@ with st.sidebar:
                     break
         
         selected_clinic_name = st.selectbox(
-            "Active clinic for AI calls:",
+            "Choose clinic for bookings:",
             clinic_names,
             index=default_idx,
             key="clinic_selector"
@@ -701,31 +726,46 @@ with st.sidebar:
     
     st.divider()
     
-    st.markdown("### 📞 Patient Line")
+    st.markdown("""
+    <div style="font-size: 1.3rem; font-weight: 800; color: #E5E7EB; margin-bottom: 16px;">
+        📞 Patient Line
+    </div>
+    """, unsafe_allow_html=True)
+    
     st.markdown(f"""
     <div style="background: linear-gradient(135deg, #6C63FF, #22C55E);
-                color: white; padding: 18px; border-radius: 14px;
-                text-align: center; font-size: 1.3rem; font-weight: 700;">
+                color: white; padding: 22px; border-radius: 16px;
+                text-align: center; font-size: 1.5rem; font-weight: 800;
+                box-shadow: 0 8px 24px rgba(108, 99, 255, 0.3);">
         {TWILIO_NUMBER}
     </div>
     """, unsafe_allow_html=True)
     
-    # Show which clinic is selected for AI calls
+    # Show which clinic is active for bookings/lookups
     if clinics and selected_clinic_name:
         st.markdown(f"""
         <div style="background: rgba(108, 99, 255, 0.15); border: 1px solid rgba(108, 99, 255, 0.4); 
-                    border-radius: 8px; padding: 10px; margin-top: 10px; text-align: center;">
-            <span style="color: #9CA3AF; font-size: 0.85rem;">AI answering as:</span><br>
-            <span style="color: #6C63FF; font-weight: 700;">{selected_clinic_name}</span>
+                    border-radius: 12px; padding: 16px; margin-top: 12px; text-align: center;">
+            <span style="color: #9CA3AF; font-size: 1rem; display: block; margin-bottom: 8px;">Active Clinic:</span>
+            <span style="color: #6C63FF; font-weight: 800; font-size: 1.15rem;">{selected_clinic_name}</span>
+            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(108, 99, 255, 0.3);">
+                <span style="color: #22C55E; font-size: 0.85rem;">✓ Bookings & lookups use this clinic</span>
+            </div>
         </div>
         """, unsafe_allow_html=True)
     else:
         st.warning("⚠️ No clinic configured")
     
-    st.divider()
+    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
     
-    st.markdown("### ⚙️ Configure")
-    st.caption("Select clinic above to configure which dental office the AI represents when answering calls.")
+    st.markdown("""
+    <div style="font-size: 1.2rem; font-weight: 700; color: #E5E7EB; margin-bottom: 12px;">⚙️ How It Works</div>
+    <div style="color: #9CA3AF; font-size: 0.95rem; line-height: 1.6;">
+        1. Select clinic above<br>
+        2. Call the patient line<br>
+        3. AI uses selected clinic for all bookings
+    </div>
+    """, unsafe_allow_html=True)
     
 
 # ============================================================================
