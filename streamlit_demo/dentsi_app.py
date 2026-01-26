@@ -54,6 +54,51 @@ if 'selected_clinic_name' not in st.session_state:
 
 st.markdown("""
 <style>
+    /* =========================
+       GLOBAL TYPOGRAPHY FIX
+       ========================= */
+    
+    html, body, [class*="css"] {
+        font-size: 17px !important;
+        line-height: 1.6 !important;
+    }
+    
+    /* Main page padding */
+    .block-container {
+        padding-top: 2.5rem !important;
+        padding-bottom: 3rem !important;
+        padding-left: 3rem !important;
+        padding-right: 3rem !important;
+    }
+    
+    /* Headings */
+    h1 { font-size: 2.4rem !important; margin-bottom: 0.8rem !important; }
+    h2 { font-size: 1.9rem !important; margin-top: 2.2rem !important; margin-bottom: 0.6rem !important; }
+    h3 { font-size: 1.4rem !important; margin-top: 1.8rem !important; margin-bottom: 0.4rem !important; }
+    
+    /* Text / Labels */
+    p, li, label { font-size: 1.05rem !important; line-height: 1.6 !important; }
+    
+    /* Metrics */
+    [data-testid="stMetricValue"] { font-size: 2.2rem !important; font-weight: 800 !important; }
+    [data-testid="stMetricLabel"] { font-size: 1rem !important; letter-spacing: 0.05em !important; }
+    
+    /* Buttons global */
+    button { font-size: 1.05rem !important; padding: 0.6rem 1.2rem !important; border-radius: 10px !important; }
+    
+    /* Input fields */
+    input, textarea, select { font-size: 1.05rem !important; padding: 0.55rem !important; }
+    
+    /* Sections spacing */
+    div[data-testid="stVerticalBlock"] > div { gap: 1.4rem !important; }
+    
+    /* Sidebar */
+    section[data-testid="stSidebar"] { padding-top: 2rem !important; }
+    section[data-testid="stSidebar"] * { font-size: 1rem !important; }
+    
+    /* Remove cramped feel */
+    hr { margin-top: 2rem !important; margin-bottom: 2rem !important; }
+    
     /* ============================================ */
     /* DENTSI THEME - FROM GUIDANCE DOCUMENT */
     /* 4 Core Colors Only: */
@@ -303,54 +348,42 @@ st.markdown("""
         animation: float 3s ease-in-out infinite;
     }
     
-    /* Tab styling - MUCH BIGGER with multiple selectors */
-    .stTabs [data-baseweb="tab-list"],
-    div[data-baseweb="tab-list"] {
-        gap: 20px !important;
-        background: linear-gradient(145deg, #121A2F, #0B1220) !important;
-        padding: 24px 36px !important;
-        border-radius: 24px !important;
-        margin-bottom: 40px !important;
-        justify-content: center !important;
-        border: 2px solid rgba(108, 99, 255, 0.5) !important;
-        flex-wrap: wrap !important;
-    }
+    /* =========================
+       TABS - CORRECT SELECTOR
+       ========================= */
     
-    .stTabs [data-baseweb="tab"],
-    .stTabs button[role="tab"],
-    div[data-baseweb="tab-list"] button {
-        background: transparent !important;
+    button[data-baseweb="tab"] {
+        font-size: 1.2rem !important;
+        padding: 1rem 1.5rem !important;
+        font-weight: 700 !important;
         color: #9CA3AF !important;
-        font-weight: 800 !important;
-        font-size: 1.15rem !important;
-        padding: 16px 28px !important;
-        border-radius: 14px !important;
-        min-height: 56px !important;
-        transition: all 0.2s ease !important;
+        background: transparent !important;
         border: none !important;
+        border-radius: 12px !important;
+        transition: all 0.2s ease !important;
     }
     
-    .stTabs [data-baseweb="tab"]:hover,
-    .stTabs button[role="tab"]:hover,
-    div[data-baseweb="tab-list"] button:hover {
-        background: rgba(108, 99, 255, 0.25) !important;
+    button[data-baseweb="tab"]:hover {
+        background: rgba(108, 99, 255, 0.2) !important;
         color: #E5E7EB !important;
     }
     
-    .stTabs [aria-selected="true"],
-    .stTabs button[aria-selected="true"],
-    div[data-baseweb="tab-list"] button[aria-selected="true"] {
-        background: linear-gradient(135deg, #6C63FF, #8B7FFF) !important;
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background: #6C63FF !important;
         color: #ffffff !important;
-        box-shadow: 0 8px 20px rgba(108, 99, 255, 0.4) !important;
+        box-shadow: 0 4px 12px rgba(108, 99, 255, 0.4) !important;
     }
     
-    /* Tab text inside buttons */
-    .stTabs [data-baseweb="tab"] p,
-    .stTabs button[role="tab"] p,
-    div[data-baseweb="tab-list"] button p {
-        font-size: 1.15rem !important;
-        font-weight: 700 !important;
+    /* Tab container */
+    div[data-baseweb="tab-list"] {
+        gap: 16px !important;
+        background: linear-gradient(145deg, #121A2F, #0B1220) !important;
+        padding: 20px 28px !important;
+        border-radius: 20px !important;
+        margin-bottom: 32px !important;
+        justify-content: center !important;
+        border: 2px solid rgba(108, 99, 255, 0.4) !important;
+        flex-wrap: wrap !important;
     }
     
     /* Input fields */
