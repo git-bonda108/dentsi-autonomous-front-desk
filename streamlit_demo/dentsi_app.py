@@ -138,7 +138,7 @@ st.markdown("""
     
     /* MAIN TITLE - ANIMATED COLORS - AMPLIT AI */
     .main-title {
-        font-size: 4rem;
+        font-size: 4.5rem;
         font-weight: 900;
         background: linear-gradient(135deg, #6C63FF, #22C55E, #FACC15, #FF6B6B, #6C63FF);
         background-size: 400% 400%;
@@ -725,7 +725,7 @@ DOCTORS = fetch_doctors()
 with st.sidebar:
     # Animated sidebar header - AMPLIT AI
     st.markdown("""<div style="text-align: center; padding: 35px 15px;">
-<div style="font-size: 3.2rem; font-weight: 900; background: linear-gradient(135deg, #6C63FF, #22C55E, #FACC15, #FF6B6B, #6C63FF); background-size: 400% 400%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: gradient-shift 3s ease infinite; letter-spacing: -1px; margin-bottom: 12px;">AMPLIT AI</div>
+<div style="font-size: 3.5rem; font-weight: 900; background: linear-gradient(135deg, #6C63FF, #22C55E, #FACC15, #FF6B6B, #6C63FF); background-size: 400% 400%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: gradient-shift 3s ease infinite; letter-spacing: -1px; margin-bottom: 12px;">AMPLIT AI</div>
 <div style="font-size: 1.25rem; font-weight: 700; background: linear-gradient(90deg, #22C55E, #6C63FF); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px;">AI That Amplifies Care</div>
 <div style="font-size: 1rem; line-height: 1.6; color: #9CA3AF; font-style: italic;">Where Every Patient Call<br>Leads to a Smile</div>
 <div style="margin-top: 22px; display: inline-flex; align-items: center; gap: 10px; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 25px; padding: 10px 18px;">
@@ -1849,7 +1849,7 @@ with tab8:
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown(f"""
 <div style="text-align: center; padding: 40px 20px; border-top: 1px solid rgba(139, 92, 246, 0.3); background: linear-gradient(180deg, transparent, rgba(139, 92, 246, 0.05));">
-    <div style="font-size: 2.2rem; font-weight: 900; 
+    <div style="font-size: 2.5rem; font-weight: 900; 
                 background: linear-gradient(135deg, #6C63FF, #22C55E, #FACC15, #FF6B6B, #6C63FF);
                 background-size: 400% 400%;
                 -webkit-background-clip: text; -webkit-text-fill-color: transparent;
