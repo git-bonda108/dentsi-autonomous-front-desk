@@ -1,5 +1,5 @@
 """
-🦷 DENTSI - Autonomous Agentic Dental Assistant
+AMPLIT AI - Autonomous Agentic Dental Assistant
 Premium Enterprise Dashboard - Production Ready
 
 Features:
@@ -29,8 +29,8 @@ TWILIO_NUMBER = "+1 (920) 891-4513"
 TWILIO_NUMBER_RAW = "+19208914513"
 
 st.set_page_config(
-    page_title="DENTSI - Autonomous Dental Assistant",
-    page_icon="🦷",
+    page_title="AMPLIT AI - Where Every Call Leads to a Smile",
+    page_icon="✨",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -100,16 +100,17 @@ st.markdown("""
     hr { margin-top: 2rem !important; margin-bottom: 2rem !important; }
     
     /* ============================================ */
-    /* DENTSI THEME - FROM GUIDANCE DOCUMENT */
-    /* 4 Core Colors Only: */
+    /* AMPLIT AI THEME */
+    /* 5 Core Colors: */
     /* #0B1220 - Deep Navy (Background) */
     /* #121A2F - Midnight Blue (Cards) */
     /* #6C63FF - Electric Indigo (Primary) */
     /* #22C55E - Emerald (Success) */
-    /* Secondary: Gold #FACC15 (Revenue) */
+    /* #FACC15 - Gold (Revenue) */
+    /* #FF6B6B - Coral (Accent) */
     /* ============================================ */
     
-    /* ANIMATIONS - Keep floating tooth */
+    /* ANIMATIONS */
     @keyframes float {
         0%, 100% { transform: translateY(0px); }
         50% { transform: translateY(-8px); }
@@ -128,25 +129,26 @@ st.markdown("""
     /* Hide Streamlit branding */
     #MainMenu, footer, header { visibility: hidden; }
     
-    /* ANIMATED GRADIENT for DENTSI title */
+    /* ANIMATED GRADIENT for AMPLIT AI title */
     @keyframes gradient-shift {
         0% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
     }
     
-    /* MAIN TITLE - ANIMATED COLORS */
+    /* MAIN TITLE - ANIMATED COLORS - AMPLIT AI */
     .main-title {
-        font-size: 3.5rem;
+        font-size: 4rem;
         font-weight: 900;
-        background: linear-gradient(135deg, #6C63FF, #22C55E, #FACC15, #6C63FF);
-        background-size: 300% 300%;
+        background: linear-gradient(135deg, #6C63FF, #22C55E, #FACC15, #FF6B6B, #6C63FF);
+        background-size: 400% 400%;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         text-align: center;
-        padding: 20px 0 5px 0;
-        letter-spacing: -1px;
-        animation: gradient-shift 4s ease infinite;
+        padding: 30px 0 10px 0;
+        letter-spacing: -2px;
+        animation: gradient-shift 3s ease infinite;
+        text-shadow: 0 4px 30px rgba(108, 99, 255, 0.3);
     }
     
     .subtitle {
@@ -349,7 +351,7 @@ st.markdown("""
     }
     
     /* =========================
-       TOP NAV / TABS – DENTSI
+       TOP NAV / TABS – AMPLIT AI
        ========================= */
     
     /* Tabs container */
@@ -721,13 +723,11 @@ DOCTORS = fetch_doctors()
 # ============================================================================
 
 with st.sidebar:
-    # Animated sidebar header
+    # Animated sidebar header - AMPLIT AI
     st.markdown("""<div style="text-align: center; padding: 30px 10px;">
-<div style="margin-bottom: 15px; animation: float 3s ease-in-out infinite;">
-<img src="https://em-content.zobj.net/source/apple/391/tooth_1f9b7.png" alt="Dentsi" style="width: 90px; height: 90px; filter: drop-shadow(0 8px 20px rgba(108, 99, 255, 0.5));">
-</div>
-<div style="font-size: 2.5rem; font-weight: 900; background: linear-gradient(135deg, #6C63FF, #22C55E, #FACC15, #6C63FF); background-size: 300% 300%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: gradient-shift 4s ease infinite; letter-spacing: -1px;">DENTSI</div>
-<div style="margin-top: 12px; font-size: 0.95rem; line-height: 1.5; color: #9CA3AF; font-style: italic;">Your invisible front desk<br>that never sleeps</div>
+<div style="font-size: 2.8rem; font-weight: 900; background: linear-gradient(135deg, #6C63FF, #22C55E, #FACC15, #FF6B6B, #6C63FF); background-size: 400% 400%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: gradient-shift 3s ease infinite; letter-spacing: -1px; text-shadow: 0 4px 30px rgba(108, 99, 255, 0.4);">AMPLIT AI</div>
+<div style="margin-top: 8px; font-size: 1.1rem; font-weight: 600; background: linear-gradient(90deg, #22C55E, #6C63FF); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">AI That Amplifies Care</div>
+<div style="margin-top: 12px; font-size: 0.9rem; line-height: 1.5; color: #9CA3AF; font-style: italic;">Where Every Patient Call<br>Leads to a Smile</div>
 <div style="margin-top: 20px; display: inline-flex; align-items: center; gap: 8px; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 20px; padding: 6px 14px;">
 <span style="width: 8px; height: 8px; background: #22C55E; border-radius: 50%; animation: pulse 2s infinite;"></span>
 <span style="color: #22C55E; font-size: 0.85rem; font-weight: 600;">Always On</span>
@@ -849,37 +849,62 @@ with st.sidebar:
 # MAIN CONTENT
 # ============================================================================
 
+st.markdown('<h1 class="main-title">AMPLIT AI</h1>', unsafe_allow_html=True)
 st.markdown("""
-<div style="text-align: center; margin-bottom: 20px; animation: fade-in-up 0.8s ease-out;">
-    <div class="sidebar-logo" style="display: inline-block;">
-        <img src="https://em-content.zobj.net/source/apple/391/tooth_1f9b7.png" 
-             alt="Dentsi" style="width: 70px; height: 70px; filter: drop-shadow(0 8px 25px rgba(139, 92, 246, 0.6));">
-    </div>
-</div>
-""", unsafe_allow_html=True)
-st.markdown('<h1 class="main-title">DENTSI</h1>', unsafe_allow_html=True)
-st.markdown("""
-<p style="text-align: center; font-size: 1.4rem; max-width: 750px; margin-left: auto; margin-right: auto; line-height: 1.6; margin-bottom: 12px;
-   background: linear-gradient(135deg, #6C63FF, #22C55E, #FACC15, #6C63FF); background-size: 300% 300%;
-   -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: gradient-shift 4s ease infinite; font-weight: 600;">
-A team of DENTSI autonomous agents running your front desk and optimizing every chair, 24/7
+<p style="text-align: center; font-size: 1.6rem; max-width: 750px; margin-left: auto; margin-right: auto; line-height: 1.6; margin-bottom: 12px;
+   background: linear-gradient(135deg, #6C63FF, #22C55E, #FACC15, #FF6B6B, #6C63FF); background-size: 400% 400%;
+   -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: gradient-shift 3s ease infinite; font-weight: 700;">
+AI That Amplifies Care
 </p>
-<p style="text-align: center; font-size: 1.05rem; color: #9CA3AF; font-style: italic; margin-bottom: 30px;">
-DENTSI turns every call into an optimized booking — even when your clinic is closed
+<p style="text-align: center; font-size: 1.15rem; color: #9CA3AF; font-style: italic; margin-bottom: 30px;">
+Where Every Patient Call Leads to a Smile
 </p>
 """, unsafe_allow_html=True)
 
 st.markdown("""
-<div style="display: flex; justify-content: center; gap: 40px; margin-bottom: 30px; flex-wrap: wrap;">
-    <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 20px; padding: 8px 16px;">
-        <span style="width: 8px; height: 8px; background: #22C55E; border-radius: 50%; animation: pulse 2s infinite;"></span>
-        <span style="color: #22C55E; font-weight: 600;">Autonomous Mode Active</span>
+<style>
+@keyframes badge-glow {
+    0%, 100% { box-shadow: 0 0 10px rgba(34, 197, 94, 0.3); }
+    50% { box-shadow: 0 0 20px rgba(34, 197, 94, 0.5); }
+}
+@keyframes badge-slide {
+    0% { transform: translateY(10px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+}
+.feature-badge {
+    display: flex; align-items: center; gap: 10px; 
+    background: rgba(108, 99, 255, 0.12); 
+    border: 1px solid rgba(108, 99, 255, 0.35); 
+    border-radius: 25px; padding: 12px 22px;
+    color: #E5E7EB; font-size: 1rem; font-weight: 600;
+    transition: all 0.3s ease;
+    animation: badge-slide 0.6s ease-out forwards;
+}
+.feature-badge:hover {
+    transform: translateY(-2px);
+    border-color: #6C63FF;
+    box-shadow: 0 8px 20px rgba(108, 99, 255, 0.25);
+}
+.feature-badge.primary {
+    background: rgba(34, 197, 94, 0.15); 
+    border: 1px solid rgba(34, 197, 94, 0.4);
+    animation: badge-glow 2s ease-in-out infinite, badge-slide 0.6s ease-out forwards;
+}
+.feature-badge .icon { font-size: 1.2rem; }
+</style>
+<div style="display: flex; justify-content: center; gap: 24px; margin-bottom: 35px; flex-wrap: wrap;">
+    <div class="feature-badge primary" style="animation-delay: 0s;">
+        <span style="width: 10px; height: 10px; background: #22C55E; border-radius: 50%; animation: pulse 2s infinite;"></span>
+        <span style="color: #22C55E;">24/7 Call & Text Answering</span>
     </div>
-    <div style="display: flex; align-items: center; gap: 8px; color: #E5E7EB; font-size: 0.95rem;">
-        <span>🎯</span> <span>Zero Missed Calls</span>
+    <div class="feature-badge" style="animation-delay: 0.1s;">
+        <span class="icon">🎯</span> <span>Zero Missed Calls</span>
     </div>
-    <div style="display: flex; align-items: center; gap: 8px; color: #E5E7EB; font-size: 0.95rem;">
-        <span>⚡</span> <span>Instant Response</span>
+    <div class="feature-badge" style="animation-delay: 0.2s;">
+        <span class="icon">📅</span> <span>Smart Appointment Scheduling</span>
+    </div>
+    <div class="feature-badge" style="animation-delay: 0.3s;">
+        <span class="icon">💰</span> <span>Turn No-Shows into Revenue</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -996,7 +1021,7 @@ with tab1:
                 if i + j < len(apt_data):
                     apt = apt_data[i + j]
                     status_color = "#10b981" if apt["status"] == "SCHEDULED" else "#f59e0b" if apt["status"] == "CONFIRMED" else "#6b7280"
-                    service_icon = "🦷" if "clean" in apt["service"].lower() else "👑" if "crown" in apt["service"].lower() else "🔧" if "canal" in apt["service"].lower() or "extract" in apt["service"].lower() else "✨" if "whiten" in apt["service"].lower() else "🩺"
+                    service_icon = "🪥" if "clean" in apt["service"].lower() else "👑" if "crown" in apt["service"].lower() else "🔧" if "canal" in apt["service"].lower() or "extract" in apt["service"].lower() else "✨" if "whiten" in apt["service"].lower() else "🩺"
                     
                     with col:
                         st.markdown(f"""
@@ -1304,7 +1329,7 @@ with tab3:
                         <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.8)); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 16px; padding: 20px; margin-bottom: 16px;">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                                 <div>
-                                    <div style="font-size: 1.1rem; font-weight: 700; color: #ffffff;">🦷 {name}</div>
+                                    <div style="font-size: 1.1rem; font-weight: 700; color: #ffffff;">👤 {name}</div>
                                     <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">{phone}</div>
                                 </div>
                                 <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 6px 12px; border-radius: 8px; font-weight: 700;">${ltv}</div>
@@ -1348,7 +1373,7 @@ with tab3:
                 <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.8)); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 16px; padding: 20px;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <div>
-                            <div style="font-size: 1.1rem; font-weight: 700; color: #ffffff;">🦷 {s['name']}</div>
+                            <div style="font-size: 1.1rem; font-weight: 700; color: #ffffff;">👤 {s['name']}</div>
                             <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">{s['phone']}</div>
                         </div>
                         <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 6px 12px; border-radius: 8px; font-weight: 700;">${s['ltv']}</div>
@@ -1824,15 +1849,16 @@ with tab8:
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown(f"""
 <div style="text-align: center; padding: 40px 20px; border-top: 1px solid rgba(139, 92, 246, 0.3); background: linear-gradient(180deg, transparent, rgba(139, 92, 246, 0.05));">
-    <div style="font-size: 3rem; margin-bottom: 10px;">🦷</div>
-    <div style="font-size: 1.5rem; font-weight: 800; 
-                background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+    <div style="font-size: 2.2rem; font-weight: 900; 
+                background: linear-gradient(135deg, #6C63FF, #22C55E, #FACC15, #FF6B6B, #6C63FF);
+                background-size: 400% 400%;
                 -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-                margin-top: 10px;">
-        DENTSI
+                animation: gradient-shift 3s ease infinite;
+                margin-bottom: 10px;">
+        AMPLIT AI
     </div>
-    <div style="color: #a5b4fc; margin-top: 8px; font-style: italic; font-size: 1rem;">
-        Your invisible front desk that never sleeps
+    <div style="color: #a5b4fc; margin-top: 8px; font-style: italic; font-size: 1.1rem;">
+        AI That Amplifies Care — Where Every Patient Call Leads to a Smile
     </div>
     <div style="color: #64748b; font-size: 0.9rem; margin-top: 20px;">
         📞 {TWILIO_NUMBER} &nbsp;•&nbsp; 
