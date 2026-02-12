@@ -724,13 +724,13 @@ DOCTORS = fetch_doctors()
 
 with st.sidebar:
     # Animated sidebar header - AMPLIT AI
-    st.markdown("""<div style="text-align: center; padding: 30px 10px;">
-<div style="font-size: 2.8rem; font-weight: 900; background: linear-gradient(135deg, #6C63FF, #22C55E, #FACC15, #FF6B6B, #6C63FF); background-size: 400% 400%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: gradient-shift 3s ease infinite; letter-spacing: -1px; text-shadow: 0 4px 30px rgba(108, 99, 255, 0.4);">AMPLIT AI</div>
-<div style="margin-top: 8px; font-size: 1.1rem; font-weight: 600; background: linear-gradient(90deg, #22C55E, #6C63FF); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">AI That Amplifies Care</div>
-<div style="margin-top: 12px; font-size: 0.9rem; line-height: 1.5; color: #9CA3AF; font-style: italic;">Where Every Patient Call<br>Leads to a Smile</div>
-<div style="margin-top: 20px; display: inline-flex; align-items: center; gap: 8px; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 20px; padding: 6px 14px;">
-<span style="width: 8px; height: 8px; background: #22C55E; border-radius: 50%; animation: pulse 2s infinite;"></span>
-<span style="color: #22C55E; font-size: 0.85rem; font-weight: 600;">Always On</span>
+    st.markdown("""<div style="text-align: center; padding: 35px 15px;">
+<div style="font-size: 3.2rem; font-weight: 900; background: linear-gradient(135deg, #6C63FF, #22C55E, #FACC15, #FF6B6B, #6C63FF); background-size: 400% 400%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: gradient-shift 3s ease infinite; letter-spacing: -1px; margin-bottom: 12px;">AMPLIT AI</div>
+<div style="font-size: 1.25rem; font-weight: 700; background: linear-gradient(90deg, #22C55E, #6C63FF); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px;">AI That Amplifies Care</div>
+<div style="font-size: 1rem; line-height: 1.6; color: #9CA3AF; font-style: italic;">Where Every Patient Call<br>Leads to a Smile</div>
+<div style="margin-top: 22px; display: inline-flex; align-items: center; gap: 10px; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 25px; padding: 10px 18px;">
+<span style="width: 10px; height: 10px; background: #22C55E; border-radius: 50%; animation: pulse 2s infinite;"></span>
+<span style="color: #22C55E; font-size: 1rem; font-weight: 700;">Always On</span>
 </div>
 </div>""", unsafe_allow_html=True)
     
