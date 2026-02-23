@@ -470,6 +470,7 @@ export class ElevenLabsToolsController {
   /**
    * Tool: log_conversation
    * Save conversation summary after call ends
+   * Supports bilingual (English/Spanish) with translation
    */
   @Post('log-conversation')
   @HttpCode(200)
@@ -478,13 +479,15 @@ export class ElevenLabsToolsController {
     patient_phone: string;
     patient_name?: string;
     summary: string;
+    summary_spanish?: string;
+    language?: string;
     outcome: string;
     duration_seconds: number;
     appointment_booked: boolean;
     sentiment?: string;
     clinic_id?: string;
   }) {
-    this.logger.log(`📝 Logging conversation: ${body.call_id}`);
+    this.logger.log(`📝 Logging conversation: ${body.call_id} (Language: ${body.language || 'english'})`);
 
     try {
       // Get default clinic if not specified
@@ -509,6 +512,14 @@ export class ElevenLabsToolsController {
         where: { phone: { contains: body.patient_phone.replace(/\D/g, '').slice(-10) } },
       });
 
+      // Build metadata with language info
+      const metadata = JSON.stringify({
+        language: body.language || 'english',
+        summary_spanish: body.summary_spanish || null,
+        appointment_booked: body.appointment_booked,
+        patient_name: body.patient_name || null,
+      });
+
       // Create call log
       const call = await this.prisma.call.create({
         data: {
@@ -521,13 +532,17 @@ export class ElevenLabsToolsController {
           status: 'completed',
           outcome: body.outcome,
           sentiment_score: body.sentiment === 'positive' ? 0.8 : body.sentiment === 'negative' ? 0.3 : 0.5,
+          metadata: metadata,
         },
       });
 
       return {
         success: true,
         call_id: call.id,
-        message: 'Conversation logged successfully',
+        language: body.language || 'english',
+        message: body.language === 'spanish' 
+          ? 'Conversación registrada exitosamente' 
+          : 'Conversation logged successfully',
       };
     } catch (error) {
       this.logger.error(`Error logging conversation: ${error.message}`);
