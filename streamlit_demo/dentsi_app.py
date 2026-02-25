@@ -1319,10 +1319,11 @@ with tab3:
                     patient = filtered_patients[i + j]
                     name = patient.get('name', 'Unknown')
                     phone = patient.get('phone', 'N/A')
-                    email = patient.get('email', '')
-                    provider = patient.get('insurance_provider', '')
-                    appointments = patient.get('appointments', [])
+                    email = patient.get('email') or ''
+                    provider = patient.get('insurance_provider') or ''
+                    appointments = patient.get('appointments') or []
                     ltv = len(appointments) * 150
+                    email_display = (email[:20] + '...') if email and len(email) > 20 else (email if email else 'No email')
                     
                     with col:
                         st.markdown(f"""
@@ -1336,7 +1337,7 @@ with tab3:
                             </div>
                             <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(139, 92, 246, 0.2);">
                                 <div style="display: flex; justify-content: space-between; color: #e2e8f0; font-size: 0.9rem;">
-                                    <span>📧 {email[:20] + '...' if len(email) > 20 else email if email else 'No email'}</span>
+                                    <span>📧 {email_display}</span>
                                 </div>
                                 <div style="margin-top: 8px; color: #a5b4fc; font-size: 0.85rem;">
                                     🏥 {provider if provider else 'No insurance'}
