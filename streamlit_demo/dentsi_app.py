@@ -749,59 +749,28 @@ with st.sidebar:
     
     st.divider()
     
-    # Clinic selector - fetch from backend
+    # Hardcoded clinic - SmileCare Dental
     clinics = fetch_clinics()
+    selected_clinic_name = "SmileCare Dental"
+    selected_clinic_id = None
     
-    st.markdown("""
-    <div style="font-size: 1.3rem; font-weight: 800; color: #E5E7EB; margin-bottom: 16px;">
-        🏥 Select Clinic
-    </div>
-    """, unsafe_allow_html=True)
+    # Find SmileCare Dental ID from clinics list
+    for c in clinics:
+        if "smile" in c.get("name", "").lower() or c.get("name") == clinics[0].get("name") if clinics else False:
+            selected_clinic_id = c.get("id")
+            selected_clinic_name = c.get("name", "SmileCare Dental")
+            break
     
-    if clinics:
-        clinic_names = [c.get("name", "Unknown") for c in clinics]
-        
-        # Default to first clinic if none selected
-        default_idx = 0
-        if st.session_state.selected_clinic_id:
-            for idx, c in enumerate(clinics):
-                if c.get("id") == st.session_state.selected_clinic_id:
-                    default_idx = idx
-                    break
-        
-        selected_clinic_name = st.selectbox(
-            "Choose clinic for bookings:",
-            clinic_names,
-            index=default_idx,
-            key="clinic_selector"
-        )
-        
-        # Store selected clinic info in session state and notify backend
-        for c in clinics:
-            if c.get("name") == selected_clinic_name:
-                new_clinic_id = c.get("id")
-                # Only update if changed
-                if new_clinic_id != st.session_state.selected_clinic_id:
-                    st.session_state.selected_clinic_id = new_clinic_id
-                    st.session_state.selected_clinic_name = c.get("name")
-                    # Notify backend of active clinic change for AI calls
-                    try:
-                        requests.post(
-                            f"{API_BASE}/admin/set-active-clinic",
-                            json={"clinic_id": new_clinic_id},
-                            timeout=5
-                        )
-                    except:
-                        pass
-                break
-        
-        selected_clinic_id = st.session_state.selected_clinic_id
-    else:
-        st.warning("No clinics found in database")
-        selected_clinic_name = "Demo Clinic"
-        selected_clinic_id = None
-    
-    st.divider()
+    # Set as active clinic on backend
+    if selected_clinic_id:
+        try:
+            requests.post(
+                f"{API_BASE}/admin/set-active-clinic",
+                json={"clinic_id": selected_clinic_id},
+                timeout=5
+            )
+        except:
+            pass
     
     st.markdown("""
     <div style="font-size: 1.3rem; font-weight: 800; color: #E5E7EB; margin-bottom: 16px;">
@@ -818,29 +787,26 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     
-    # Show which clinic is active for bookings/lookups
-    if clinics and selected_clinic_name:
-        st.markdown(f"""
-        <div style="background: rgba(108, 99, 255, 0.15); border: 1px solid rgba(108, 99, 255, 0.4); 
-                    border-radius: 12px; padding: 16px; margin-top: 12px; text-align: center;">
-            <span style="color: #9CA3AF; font-size: 1rem; display: block; margin-bottom: 8px;">Active Clinic:</span>
-            <span style="color: #6C63FF; font-weight: 800; font-size: 1.15rem;">{selected_clinic_name}</span>
-            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(108, 99, 255, 0.3);">
-                <span style="color: #22C55E; font-size: 0.85rem;">✓ Bookings & lookups use this clinic</span>
-            </div>
+    # Show active clinic
+    st.markdown(f"""
+    <div style="background: rgba(108, 99, 255, 0.15); border: 1px solid rgba(108, 99, 255, 0.4); 
+                border-radius: 12px; padding: 16px; margin-top: 12px; text-align: center;">
+        <span style="color: #9CA3AF; font-size: 1rem; display: block; margin-bottom: 8px;">Active Clinic:</span>
+        <span style="color: #6C63FF; font-weight: 800; font-size: 1.15rem;">{selected_clinic_name}</span>
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(108, 99, 255, 0.3);">
+            <span style="color: #22C55E; font-size: 0.85rem;">✓ All bookings go to this clinic</span>
         </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.warning("⚠️ No clinic configured")
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
     
     st.markdown("""
     <div style="font-size: 1.2rem; font-weight: 700; color: #E5E7EB; margin-bottom: 12px;">⚙️ How It Works</div>
     <div style="color: #9CA3AF; font-size: 0.95rem; line-height: 1.6;">
-        1. Select clinic above<br>
-        2. Call the patient line<br>
-        3. AI uses selected clinic for all bookings
+        1. Call the patient line above<br>
+        2. Dentsi AI answers 24/7<br>
+        3. Appointments booked automatically
     </div>
     """, unsafe_allow_html=True)
     

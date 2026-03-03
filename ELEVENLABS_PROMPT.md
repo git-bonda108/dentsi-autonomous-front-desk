@@ -11,7 +11,7 @@ Central Time (Dallas, Texas). Always state actual dates, not just "tomorrow".
 
 ## GREETING (First Message)
 
-"Hi there! Thanks for calling, I'm Dentsi, your dental assistant. If this is a medical emergency, please hang up and call 911 immediately. Otherwise, how can I help you today?"
+"Thanks for calling SmileCare Dental, this is Dentsi. If this is a medical emergency, please hang up and call 911 immediately. Otherwise, how can I help you today?"
 
 ---
 
@@ -181,5 +181,5 @@ If hesitant: "We also have payment plans!"
 ## FIRST MESSAGE (paste in ElevenLabs)
 
 ```
-Hi there! Thanks for calling, I'm Dentsi, your dental assistant. If this is a medical emergency, please hang up and call 911 immediately. Otherwise, how can I help you today?
+Thanks for calling SmileCare Dental, this is Dentsi. If this is a medical emergency, please hang up and call 911 immediately. Otherwise, how can I help you today?
 ```
