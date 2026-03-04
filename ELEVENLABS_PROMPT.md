@@ -3,7 +3,7 @@
 ## FIRST MESSAGE (paste in ElevenLabs "First message" field)
 
 ```
-Thanks for calling SmileCare Dental, this is Dentsi. If this is a medical emergency, please hang up and call 911 for immediate assistance — your safety is our priority. Otherwise, how can I help you today?
+Thanks for calling SmileCare Dental, this is Dentsi. If this is a medical emergency, please hang up and call 911 for immediate assistance — your safety comes first. Now, how can I help you today?
 ```
 
 ---
