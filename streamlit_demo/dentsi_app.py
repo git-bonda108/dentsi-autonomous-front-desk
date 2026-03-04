@@ -752,25 +752,23 @@ with st.sidebar:
     # Hardcoded clinic - SmileCare Dental
     clinics = fetch_clinics()
     selected_clinic_name = "SmileCare Dental"
-    selected_clinic_id = None
+    selected_clinic_id = "ea239f20-2e76-4192-82bb-3ac9e7df4236"  # SmileCare Dental ID
     
-    # Find SmileCare Dental ID from clinics list
+    # Find SmileCare Dental ID from clinics list (fallback verification)
     for c in clinics:
-        if "smile" in c.get("name", "").lower() or c.get("name") == clinics[0].get("name") if clinics else False:
+        if c.get("name") == "SmileCare Dental":
             selected_clinic_id = c.get("id")
-            selected_clinic_name = c.get("name", "SmileCare Dental")
             break
     
-    # Set as active clinic on backend
-    if selected_clinic_id:
-        try:
-            requests.post(
-                f"{API_BASE}/admin/set-active-clinic",
-                json={"clinic_id": selected_clinic_id},
-                timeout=5
-            )
-        except:
-            pass
+    # Set SmileCare Dental as active clinic on backend
+    try:
+        requests.post(
+            f"{API_BASE}/admin/set-active-clinic",
+            json={"clinic_id": selected_clinic_id},
+            timeout=5
+        )
+    except:
+        pass
     
     st.markdown("""
     <div style="font-size: 1.3rem; font-weight: 800; color: #E5E7EB; margin-bottom: 16px;">

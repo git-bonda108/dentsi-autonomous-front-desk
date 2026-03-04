@@ -5,7 +5,8 @@
  */
 
 class DemoConfig {
-  private activeClinicId: string | null = null;
+  // Default to SmileCare Dental
+  private activeClinicId: string | null = 'ea239f20-2e76-4192-82bb-3ac9e7df4236';
 
   setActiveClinic(clinicId: string) {
     this.activeClinicId = clinicId;
