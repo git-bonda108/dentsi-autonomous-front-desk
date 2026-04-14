@@ -12,12 +12,14 @@ Features:
 Run: streamlit run dentsi_app.py
 """
 
+import html
 import streamlit as st
 import requests
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+from typing import Tuple
 import time
 
 # ============================================================================
@@ -27,6 +29,58 @@ import time
 API_BASE = "https://dentcognit.abacusai.app"
 TWILIO_NUMBER = "+1 (920) 891-4513"
 TWILIO_NUMBER_RAW = "+19208914513"
+
+# Mock live call transcript (Batch 1 — replace with API / websocket in Batch 2)
+MOCK_LIVE_TRANSCRIPT = [
+    {"role": "agent", "ts": "10:02:01", "text": "Thanks for calling SmileCare Dental, this is Dentsi. How are you doing today?"},
+    {"role": "caller", "ts": "10:02:08", "text": "Hi, I'm doing well. I need to book a cleaning sometime next week."},
+    {"role": "agent", "ts": "10:02:14", "text": "Absolutely — I can help with that. Can I get the best phone number to look up your chart?"},
+    {"role": "caller", "ts": "10:02:21", "text": "Sure, it's 214-555-0199."},
+    {"role": "agent", "ts": "10:02:26", "text": "Perfect, thank you. And do you have dental insurance you'd like us to note?"},
+    {"role": "caller", "ts": "10:02:33", "text": "Yes, Delta Dental."},
+    {"role": "agent", "ts": "10:02:41", "text": "Got it. I have Tuesday the 18th at 9 AM or Wednesday at 2 PM — which works better?"},
+    {"role": "caller", "ts": "10:02:48", "text": "Tuesday at 9 works great."},
+    {"role": "agent", "ts": "10:02:55", "text": "Let me get that locked in for you… one moment while I save this to our records."},
+    {"role": "system", "ts": "10:03:02", "text": "✓ Appointment saved · log_conversation API"},
+    {"role": "agent", "ts": "10:03:05", "text": "You're all set — your cleaning is confirmed for Tuesday at 9 AM. Anything else I can help with today?"},
+]
+
+# Mock SMS threads for Text tab
+MOCK_TEXT_THREADS = [
+    {
+        "id": "sms-1",
+        "patient": "Jordan Lee",
+        "phone": "(214) 555-0142",
+        "last_at": "Today · 9:14 AM",
+        "messages": [
+            {"dir": "in", "body": "Hi, can I reschedule my cleaning from Friday to Monday?", "at": "9:12 AM"},
+            {"dir": "out", "body": "Hi Jordan — Dentsi here from SmileCare Dental. I can help with that. Would Monday 10 AM work?", "at": "9:13 AM"},
+            {"dir": "in", "body": "10 AM is perfect, thank you!", "at": "9:14 AM"},
+            {"dir": "out", "body": "You're booked for Monday at 10 AM. We'll send a text reminder. Have a great day!", "at": "9:14 AM"},
+        ],
+    },
+    {
+        "id": "sms-2",
+        "patient": "Priya Sharma",
+        "phone": "(469) 555-0881",
+        "last_at": "Yesterday · 4:02 PM",
+        "messages": [
+            {"dir": "in", "body": "How much is a whitening session?", "at": "4:00 PM"},
+            {"dir": "out", "body": "Hi Priya — whitening with us is typically around $450. Want me to check openings this week?", "at": "4:01 PM"},
+            {"dir": "in", "body": "Maybe next month — I'll text back.", "at": "4:02 PM"},
+        ],
+    },
+    {
+        "id": "sms-3",
+        "patient": "Marcus Cole",
+        "phone": "(817) 555-0300",
+        "last_at": "Mon · 11:20 AM",
+        "messages": [
+            {"dir": "in", "body": "Running 10 min late to my 11 appointment", "at": "11:18 AM"},
+            {"dir": "out", "body": "Thanks for the heads up, Marcus — we'll hold your chair. Drive safe!", "at": "11:19 AM"},
+        ],
+    },
+]
 
 st.set_page_config(
     page_title="AMPLIT AI - Where Every Call Leads to a Smile",
@@ -43,6 +97,8 @@ if 'demo_session_id' not in st.session_state:
     st.session_state.demo_session_id = None
 if 'conversation_history' not in st.session_state:
     st.session_state.conversation_history = []
+if 'live_transcript_lines' not in st.session_state:
+    st.session_state.live_transcript_lines = [dict(row) for row in MOCK_LIVE_TRANSCRIPT]
 if 'selected_clinic_id' not in st.session_state:
     st.session_state.selected_clinic_id = None
 if 'selected_clinic_name' not in st.session_state:
@@ -616,6 +672,43 @@ st.markdown("""
         padding: 24px;
         animation: fade-in-up 0.5s ease-out;
     }
+    
+    /* Live call transcript (note-taker) */
+    .live-transcript-shell {
+        background: linear-gradient(165deg, rgba(18, 26, 47, 0.98) 0%, rgba(11, 18, 32, 0.99) 100%);
+        border: 1px solid rgba(108, 99, 255, 0.35);
+        border-radius: 18px;
+        padding: 20px 22px 18px;
+        margin-bottom: 22px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .live-transcript-head {
+        display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+        gap: 12px; margin-bottom: 14px; padding-bottom: 12px;
+        border-bottom: 1px solid rgba(108, 99, 255, 0.2);
+    }
+    .live-transcript-title {
+        font-size: 1.05rem; font-weight: 800; letter-spacing: 0.04em;
+        background: linear-gradient(90deg, #a78bfa, #6C63FF, #22d3ee);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .live-transcript-scroll {
+        max-height: 280px; overflow-y: auto; padding-right: 6px;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+    }
+    .tx-line { margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; }
+    .tx-badge {
+        flex-shrink: 0; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.06em; padding: 4px 8px; border-radius: 8px; min-width: 64px; text-align: center;
+    }
+    .tx-badge-dentsi { background: rgba(108, 99, 255, 0.25); color: #c4b5fd; border: 1px solid rgba(108,99,255,0.45); }
+    .tx-badge-caller { background: rgba(34, 197, 94, 0.18); color: #86efac; border: 1px solid rgba(34,197,94,0.35); }
+    .tx-badge-system { background: rgba(6, 182, 212, 0.18); color: #67e8f9; border: 1px solid rgba(6,182,212,0.35); }
+    .tx-bubble {
+        flex: 1; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(148, 163, 184, 0.12);
+        border-radius: 12px; padding: 10px 14px; color: #e2e8f0; font-size: 0.95rem; line-height: 1.45;
+    }
+    .tx-time { font-size: 0.72rem; color: #64748b; margin-top: 4px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -910,14 +1003,84 @@ for col, (icon, value, label) in zip([col1, col2, col3, col4, col5, col6], metri
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ============================================================================
+# LIVE CALL TRANSCRIPT (mock — Batch 1; real-time via API/ws in Batch 2)
+# ============================================================================
+
+def _transcript_badge_class(role: str) -> Tuple[str, str]:
+    if role == "caller":
+        return "tx-badge-caller", "Caller"
+    if role == "system":
+        return "tx-badge-system", "System"
+    return "tx-badge-dentsi", "Dentsi"
+
+
+def _build_transcript_html(lines: list) -> str:
+    parts = []
+    for row in lines:
+        bcls, blabel = _transcript_badge_class(row.get("role", "agent"))
+        ts = row.get("ts", "")
+        text = row.get("text", "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        parts.append(
+            f'<div class="tx-line"><span class="tx-badge {bcls}">{blabel}</span>'
+            f'<div class="tx-bubble">{text}<div class="tx-time">{ts}</div></div></div>'
+        )
+    return "".join(parts)
+
+
+ctrl_a, ctrl_b, ctrl_c = st.columns([3, 1, 1])
+with ctrl_a:
+    st.caption("Batch 2: ElevenLabs transcript webhook → append lines here in real time.")
+with ctrl_b:
+    if st.button("Reset demo", key="live_tx_reset", help="Restore mock transcript"):
+        st.session_state.live_transcript_lines = [dict(r) for r in MOCK_LIVE_TRANSCRIPT]
+        st.rerun()
+with ctrl_c:
+    if st.button("Simulate log", key="live_tx_sim", help="Append API + closing line"):
+        st.session_state.live_transcript_lines.append({
+            "role": "agent",
+            "ts": "live",
+            "text": "One moment — I'm adding this visit to our records now…",
+        })
+        st.session_state.live_transcript_lines.append({
+            "role": "system",
+            "ts": "live",
+            "text": "✓ log_conversation · appointment_booked: true",
+        })
+        st.session_state.live_transcript_lines.append({
+            "role": "agent",
+            "ts": "live",
+            "text": "You're good to go — thanks for calling SmileCare Dental!",
+        })
+        st.rerun()
+
+lines_html = _build_transcript_html(st.session_state.live_transcript_lines)
+st.markdown(f"""
+<div class="live-transcript-shell">
+    <div class="live-transcript-head">
+        <div>
+            <div class="live-transcript-title">LIVE CALL TRANSCRIPT</div>
+            <div style="color:#94a3b8;font-size:0.82rem;margin-top:4px;">
+                Note-taker view · everything spoken (mock data for now — wire to ElevenLabs in Batch 2)
+            </div>
+        </div>
+        <div class="live-indicator"><span class="live-dot"></span> Demo stream</div>
+    </div>
+    <div class="live-transcript-scroll">
+        {lines_html}
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ============================================================================
 # TABS
 # ============================================================================
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "📅 Appointments",
     "📆 Calendar",
     "👥 Patients",
     "💬 Conversations",
+    "📱 Text & SMS",
     "👨‍⚕️ Doctors",
     "💰 Revenue",
     "📊 Analytics",
@@ -1506,10 +1669,38 @@ Dentsi: Got it! You're all set for a cleaning on Tuesday, January 28th at 2pm. Y
             st.success("💰 **Revenue Impact:** Cleaning booked - Est. $120")
 
 # ============================================================================
-# TAB 5: DOCTORS
+# TAB 5: TEXT & SMS (mock — Batch 1)
 # ============================================================================
 
 with tab5:
+    st.markdown('<div class="section-header">📱 Text & SMS (mock)</div>', unsafe_allow_html=True)
+    st.caption("Inbound/outbound SMS handled by Dentsi — mock threads for UI preview. Batch 2: connect Twilio Messaging + backend inbox.")
+
+    for thread in MOCK_TEXT_THREADS:
+        with st.expander(f"**{thread['patient']}** · {thread['phone']} · _{thread['last_at']}_", expanded=False):
+            for msg in thread["messages"]:
+                is_out = msg["dir"] == "out"
+                align = "flex-end" if is_out else "flex-start"
+                bg = "linear-gradient(135deg, rgba(108,99,255,0.35), rgba(108,99,255,0.12))" if is_out else "linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.06))"
+                border = "rgba(108,99,255,0.45)" if is_out else "rgba(34,197,94,0.35)"
+                who = "Dentsi" if is_out else thread["patient"].split()[0]
+                body_esc = html.escape(msg["body"])
+                at_esc = html.escape(msg["at"])
+                who_esc = html.escape(who)
+                st.markdown(f"""
+                <div style="display:flex; justify-content:{align}; margin-bottom:10px;">
+                    <div style="max-width:78%; background:{bg}; border:1px solid {border}; border-radius:14px; padding:12px 16px;">
+                        <div style="font-size:0.72rem; color:#94a3b8; margin-bottom:4px;">{who_esc} · {at_esc}</div>
+                        <div style="color:#e2e8f0; font-size:0.95rem; line-height:1.45;">{body_esc}</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+# ============================================================================
+# TAB 6: DOCTORS
+# ============================================================================
+
+with tab6:
     st.markdown('<div class="section-header">👨‍⚕️ Doctors & Availability</div>', unsafe_allow_html=True)
     
     # Doctor tiles in rows of 3
@@ -1580,10 +1771,10 @@ with tab5:
         st.plotly_chart(fig, use_container_width=True)
 
 # ============================================================================
-# TAB 6: REVENUE
+# TAB 7: REVENUE
 # ============================================================================
 
-with tab6:
+with tab7:
     st.markdown('<div class="section-header">💰 Revenue Analytics</div>', unsafe_allow_html=True)
     
     total_doc_revenue = sum(d["revenue"] for d in DOCTORS)
@@ -1663,10 +1854,10 @@ with tab6:
         st.plotly_chart(fig, use_container_width=True)
 
 # ============================================================================
-# TAB 7: ANALYTICS
+# TAB 8: ANALYTICS
 # ============================================================================
 
-with tab7:
+with tab8:
     st.markdown('<div class="section-header">📊 Call Analytics</div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
@@ -1721,10 +1912,10 @@ with tab7:
         st.metric("🚨 Escalated", "4", "1%")
 
 # ============================================================================
-# TAB 8: ESCALATIONS
+# TAB 9: ESCALATIONS
 # ============================================================================
 
-with tab8:
+with tab9:
     st.markdown('<div class="section-header">🚨 Escalations & Alerts</div>', unsafe_allow_html=True)
     
     # Try to fetch real escalations from calls with escalated outcome
