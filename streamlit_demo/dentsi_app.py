@@ -410,24 +410,24 @@ st.markdown("""
        TOP NAV / TABS – AMPLIT AI
        ========================= */
     
-    /* Tabs container */
+    /* Tabs container (narrow column friendly) */
     div[data-testid="stTabs"] {
-        margin-top: 1.2rem !important;
+        margin-top: 0.5rem !important;
     }
     
     /* Individual tab buttons */
     button[data-baseweb="tab"] {
-        font-size: 1.2rem !important;
+        font-size: 1.05rem !important;
         font-weight: 600 !important;
-        padding: 0.9rem 1.4rem !important;
-        line-height: 1.3 !important;
-        display: flex !important;
+        padding: 0.85rem 1.35rem !important;
+        line-height: 1.35 !important;
+        display: inline-flex !important;
         align-items: center !important;
-        gap: 0.45rem !important;
+        gap: 0.4rem !important;
         color: #CBD5E1 !important;
-        background: transparent !important;
-        border: none !important;
-        border-radius: 10px !important;
+        background: rgba(15, 23, 42, 0.45) !important;
+        border: 1px solid transparent !important;
+        border-radius: 12px !important;
         transition: all 0.2s ease !important;
     }
     
@@ -439,18 +439,22 @@ st.markdown("""
     
     /* Active tab */
     button[data-baseweb="tab"][aria-selected="true"] {
-        color: #6C63FF !important;
+        color: #E0E7FF !important;
+        border: 1px solid rgba(108, 99, 255, 0.55) !important;
         border-bottom: 3px solid #6C63FF !important;
         font-weight: 700 !important;
-        background: rgba(108, 99, 255, 0.1) !important;
+        background: linear-gradient(180deg, rgba(108, 99, 255, 0.22), rgba(108, 99, 255, 0.06)) !important;
+        box-shadow: 0 4px 18px rgba(108, 99, 255, 0.2) !important;
     }
     
-    /* Tab list container */
+    /* Tab list container — centered, roomy (dashboard column) */
     div[data-baseweb="tab-list"] {
-        gap: 0.8rem !important;
-        padding-bottom: 0.5rem !important;
-        border-bottom: 1px solid rgba(108, 99, 255, 0.2) !important;
-        margin-bottom: 24px !important;
+        justify-content: center !important;
+        flex-wrap: wrap !important;
+        gap: 0.55rem 0.9rem !important;
+        padding: 0.35rem 0.25rem 0.65rem !important;
+        border-bottom: 1px solid rgba(108, 99, 255, 0.28) !important;
+        margin-bottom: 1.25rem !important;
     }
     
     /* Input fields */
@@ -709,6 +713,35 @@ st.markdown("""
         border-radius: 12px; padding: 10px 14px; color: #e2e8f0; font-size: 0.95rem; line-height: 1.45;
     }
     .tx-time { font-size: 0.72rem; color: #64748b; margin-top: 4px; }
+    
+    /* Right pane: live transcript rail */
+    .rt-pane-outer {
+        background: linear-gradient(165deg, rgba(22, 30, 52, 0.98) 0%, rgba(11, 18, 32, 0.99) 100%);
+        border: 1px solid rgba(108, 99, 255, 0.4);
+        border-radius: 18px;
+        padding: 18px 18px 14px;
+        margin-bottom: 12px;
+        box-shadow: 0 10px 36px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    .rt-pane-title-row {
+        display: flex; align-items: center; gap: 12px; margin-bottom: 6px;
+    }
+    .rt-pane-icon { font-size: 1.75rem; line-height: 1; filter: drop-shadow(0 2px 6px rgba(108,99,255,0.45)); }
+    .rt-pane-title {
+        font-size: 1.12rem; font-weight: 800; letter-spacing: 0.06em;
+        background: linear-gradient(90deg, #c4b5fd, #6C63FF, #22d3ee);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .rt-pane-sub { font-size: 0.78rem; color: #94a3b8; margin-top: 2px; }
+    .live-transcript-shell--pane {
+        margin-bottom: 0 !important;
+        margin-top: 8px;
+        min-height: 320px;
+        max-height: min(72vh, 780px);
+    }
+    .live-transcript-shell--pane .live-transcript-scroll {
+        max-height: min(58vh, 620px) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -810,6 +843,140 @@ def fetch_doctors():
     ]
 
 DOCTORS = fetch_doctors()
+
+
+# ============================================================================
+# LIVE TRANSCRIPT HELPERS (right pane)
+# ============================================================================
+def _fetch_transcript_from_api():
+    """GET /transcript/live — returns list of {role, text, ts, source?} or []."""
+    try:
+        r = requests.get(f"{API_BASE}/transcript/live", timeout=3)
+        if r.status_code == 200:
+            data = r.json()
+            return data.get("lines") or [], data.get("updated_at")
+    except Exception:
+        pass
+    return [], None
+
+
+def _transcript_badge_class(role: str) -> Tuple[str, str]:
+    if role == "caller":
+        return "tx-badge-caller", "Caller"
+    if role == "system":
+        return "tx-badge-system", "System"
+    return "tx-badge-dentsi", "Dentsi"
+
+
+def _build_transcript_html(lines: list) -> str:
+    parts = []
+    for row in lines:
+        bcls, blabel = _transcript_badge_class(row.get("role", "agent"))
+        ts = row.get("ts", "")
+        text = row.get("text", "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        parts.append(
+            f'<div class="tx-line"><span class="tx-badge {bcls}">{blabel}</span>'
+            f'<div class="tx-bubble">{text}<div class="tx-time">{ts}</div></div></div>'
+        )
+    return "".join(parts)
+
+
+@st.fragment(run_every=timedelta(seconds=3))
+def _live_transcript_fragment():
+    poll = st.session_state.get("tx_poll_api", False)
+    api_lines, updated_at = _fetch_transcript_from_api()
+    if poll and len(api_lines) > 0:
+        display_lines = api_lines
+        badge = "Live API"
+        sub = f"Streaming from backend · updated {updated_at or ''}"
+    elif poll:
+        display_lines = st.session_state.live_transcript_lines
+        badge = "API (empty) + demo fallback"
+        sub = "Backend returned no lines yet — showing local mock. Use POST test line or ElevenLabs webhook."
+    else:
+        display_lines = st.session_state.live_transcript_lines
+        badge = "Local demo"
+        sub = "Enable “Poll live transcript” to merge in /transcript/live (after deploy)."
+
+    sub_esc = html.escape(sub)
+    lines_html = _build_transcript_html(display_lines)
+    st.markdown(f"""
+<div class="live-transcript-shell live-transcript-shell--pane">
+    <div class="live-transcript-head">
+        <div>
+            <div class="live-transcript-title">LIVE CALL TRANSCRIPT</div>
+            <div style="color:#94a3b8;font-size:0.82rem;margin-top:4px;">{sub_esc}</div>
+        </div>
+        <div class="live-indicator"><span class="live-dot"></span> {badge}</div>
+    </div>
+    <div class="live-transcript-scroll">
+        {lines_html}
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+
+def _render_right_transcript_pane():
+    """Dedicated right column: live transcript controls + stream."""
+    st.markdown("""
+    <div class="rt-pane-outer">
+        <div class="rt-pane-title-row">
+            <span class="rt-pane-icon">📝</span>
+            <div>
+                <div class="rt-pane-title">Live transcript</div>
+                <div class="rt-pane-sub">Note-taker · Dentsi and caller</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.checkbox(
+        "Poll live transcript from API",
+        key="tx_poll_api",
+        help="GET /transcript/live every 3s (Abacus Batch 2).",
+    )
+    rc1, rc2, rc3 = st.columns(3)
+    with rc1:
+        if st.button("Reset demo", key="live_tx_reset", use_container_width=True):
+            st.session_state.live_transcript_lines = [dict(r) for r in MOCK_LIVE_TRANSCRIPT]
+            st.rerun()
+    with rc2:
+        if st.button("Simulate log", key="live_tx_sim", use_container_width=True):
+            st.session_state.live_transcript_lines.append({
+                "role": "agent",
+                "ts": "live",
+                "text": "One moment — I'm adding this visit to our records now…",
+            })
+            st.session_state.live_transcript_lines.append({
+                "role": "system",
+                "ts": "live",
+                "text": "✓ log_conversation · appointment_booked: true",
+            })
+            st.session_state.live_transcript_lines.append({
+                "role": "agent",
+                "ts": "live",
+                "text": "You're good to go — thanks for calling SmileCare Dental!",
+            })
+            st.rerun()
+    with rc3:
+        if st.button("POST test line", key="live_tx_post", use_container_width=True):
+            try:
+                pr = requests.post(
+                    f"{API_BASE}/transcript/line",
+                    json={
+                        "role": "agent",
+                        "text": "Streamlit test: live transcript line from dashboard.",
+                        "source": "streamlit",
+                    },
+                    timeout=5,
+                )
+                if pr.status_code == 200:
+                    st.toast("Posted to API", icon="✅")
+                else:
+                    st.toast(f"API {pr.status_code}", icon="⚠️")
+            except Exception as ex:
+                st.toast(f"Failed: {ex}", icon="❌")
+    _live_transcript_fragment()
+
 
 # ============================================================================
 # SIDEBAR
@@ -1002,1057 +1169,939 @@ for col, (icon, value, label) in zip([col1, col2, col3, col4, col5, col6], metri
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ============================================================================
-# LIVE CALL TRANSCRIPT (Batch 1 mock + Batch 2 API poll)
-# ============================================================================
+_dash_left, _dash_right = st.columns([2.82, 1.08], gap="large")
 
-def _fetch_transcript_from_api():
-    """GET /transcript/live — returns list of {role, text, ts, source?} or []."""
-    try:
-        r = requests.get(f"{API_BASE}/transcript/live", timeout=3)
-        if r.status_code == 200:
-            data = r.json()
-            return data.get("lines") or [], data.get("updated_at")
-    except Exception:
-        pass
-    return [], None
+with _dash_left:
+    # ============================================================================
+    # TABS — main workspace
+    # ============================================================================
 
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+        "📅 Appointments",
+        "📆 Calendar",
+        "👥 Patients",
+        "💬 Conversations",
+        "📱 Text & SMS",
+        "👨‍⚕️ Doctors",
+        "💰 Revenue",
+        "📊 Analytics",
+        "🚨 Escalations"
+    ])
 
-def _transcript_badge_class(role: str) -> Tuple[str, str]:
-    if role == "caller":
-        return "tx-badge-caller", "Caller"
-    if role == "system":
-        return "tx-badge-system", "System"
-    return "tx-badge-dentsi", "Dentsi"
+    # ============================================================================
+    # TAB 1: APPOINTMENTS
+    # ============================================================================
 
-
-def _build_transcript_html(lines: list) -> str:
-    parts = []
-    for row in lines:
-        bcls, blabel = _transcript_badge_class(row.get("role", "agent"))
-        ts = row.get("ts", "")
-        text = row.get("text", "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        parts.append(
-            f'<div class="tx-line"><span class="tx-badge {bcls}">{blabel}</span>'
-            f'<div class="tx-bubble">{text}<div class="tx-time">{ts}</div></div></div>'
-        )
-    return "".join(parts)
-
-
-ctrl_a, ctrl_b, ctrl_c, ctrl_d = st.columns([2, 1, 1, 1])
-with ctrl_a:
-    st.checkbox(
-        "Poll live transcript from API",
-        key="tx_poll_api",
-        help="GET /transcript/live every few seconds (requires Abacus deploy with Batch 2).",
-    )
-with ctrl_b:
-    if st.button("Reset demo", key="live_tx_reset", help="Restore local mock transcript"):
-        st.session_state.live_transcript_lines = [dict(r) for r in MOCK_LIVE_TRANSCRIPT]
-        st.rerun()
-with ctrl_c:
-    if st.button("Simulate log", key="live_tx_sim", help="Append API + closing line (local)"):
-        st.session_state.live_transcript_lines.append({
-            "role": "agent",
-            "ts": "live",
-            "text": "One moment — I'm adding this visit to our records now…",
-        })
-        st.session_state.live_transcript_lines.append({
-            "role": "system",
-            "ts": "live",
-            "text": "✓ log_conversation · appointment_booked: true",
-        })
-        st.session_state.live_transcript_lines.append({
-            "role": "agent",
-            "ts": "live",
-            "text": "You're good to go — thanks for calling SmileCare Dental!",
-        })
-        st.rerun()
-with ctrl_d:
-    if st.button("POST test line", key="live_tx_post", help="Append one line via POST /transcript/line"):
-        try:
-            pr = requests.post(
-                f"{API_BASE}/transcript/line",
-                json={
-                    "role": "agent",
-                    "text": "Streamlit test: live transcript line from dashboard.",
-                    "source": "streamlit",
-                },
-                timeout=5,
-            )
-            if pr.status_code == 200:
-                st.toast("Posted to API", icon="✅")
-            else:
-                st.toast(f"API {pr.status_code}", icon="⚠️")
-        except Exception as ex:
-            st.toast(f"Failed: {ex}", icon="❌")
-
-
-@st.fragment(run_every=timedelta(seconds=3))
-def _live_transcript_fragment():
-    poll = st.session_state.get("tx_poll_api", False)
-    api_lines, updated_at = _fetch_transcript_from_api()
-    if poll and len(api_lines) > 0:
-        display_lines = api_lines
-        badge = "Live API"
-        sub = f"Streaming from backend · updated {updated_at or ''}"
-    elif poll:
-        display_lines = st.session_state.live_transcript_lines
-        badge = "API (empty) + demo fallback"
-        sub = "Backend returned no lines yet — showing local mock. Use POST test line or ElevenLabs webhook."
-    else:
-        display_lines = st.session_state.live_transcript_lines
-        badge = "Local demo"
-        sub = "Enable “Poll live transcript” to merge in /transcript/live (after deploy)."
-
-    sub_esc = html.escape(sub)
-    lines_html = _build_transcript_html(display_lines)
-    st.markdown(f"""
-<div class="live-transcript-shell">
-    <div class="live-transcript-head">
-        <div>
-            <div class="live-transcript-title">LIVE CALL TRANSCRIPT</div>
-            <div style="color:#94a3b8;font-size:0.82rem;margin-top:4px;">{sub_esc}</div>
-        </div>
-        <div class="live-indicator"><span class="live-dot"></span> {badge}</div>
-    </div>
-    <div class="live-transcript-scroll">
-        {lines_html}
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-
-_live_transcript_fragment()
-
-# ============================================================================
-# TABS
-# ============================================================================
-
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
-    "📅 Appointments",
-    "📆 Calendar",
-    "👥 Patients",
-    "💬 Conversations",
-    "📱 Text & SMS",
-    "👨‍⚕️ Doctors",
-    "💰 Revenue",
-    "📊 Analytics",
-    "🚨 Escalations"
-])
-
-# ============================================================================
-# TAB 1: APPOINTMENTS
-# ============================================================================
-
-with tab1:
-    st.markdown('<div class="section-header">📅 Scheduled Appointments</div>', unsafe_allow_html=True)
+    with tab1:
+        st.markdown('<div class="section-header">📅 Scheduled Appointments</div>', unsafe_allow_html=True)
     
-    if booked_appointments:
-        # Summary Cards at Top
-        apt_data = []
-        for apt in booked_appointments:
-            patient = apt.get("patient") or {}
-            clinic = apt.get("clinic") or {}
-            service = apt.get("service_type", "Consultation")
-            price = get_service_price(service)
-            apt_data.append({
-                "patient_name": patient.get("name", "Unknown"),
-                "phone": patient.get("phone", "-"),
-                "service": service,
-                "date": apt.get("appointment_date", "")[:10] if apt.get("appointment_date") else "-",
-                "status": apt.get("status", "scheduled").upper(),
-                "clinic": clinic.get("name", "-"),
-                "price": price
-            })
+        if booked_appointments:
+            # Summary Cards at Top
+            apt_data = []
+            for apt in booked_appointments:
+                patient = apt.get("patient") or {}
+                clinic = apt.get("clinic") or {}
+                service = apt.get("service_type", "Consultation")
+                price = get_service_price(service)
+                apt_data.append({
+                    "patient_name": patient.get("name", "Unknown"),
+                    "phone": patient.get("phone", "-"),
+                    "service": service,
+                    "date": apt.get("appointment_date", "")[:10] if apt.get("appointment_date") else "-",
+                    "status": apt.get("status", "scheduled").upper(),
+                    "clinic": clinic.get("name", "-"),
+                    "price": price
+                })
         
-        scheduled_count = len([a for a in apt_data if a["status"] == "SCHEDULED"])
-        completed_count = len([a for a in apt_data if a["status"] == "COMPLETED"])
-        avg_revenue = total_revenue // len(booked_appointments) if booked_appointments else 0
+            scheduled_count = len([a for a in apt_data if a["status"] == "SCHEDULED"])
+            completed_count = len([a for a in apt_data if a["status"] == "COMPLETED"])
+            avg_revenue = total_revenue // len(booked_appointments) if booked_appointments else 0
         
-        # Premium Summary Cards
-        st.markdown("""
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 30px;">
-            <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(139, 92, 246, 0.1)); border: 2px solid rgba(139, 92, 246, 0.5); border-radius: 16px; padding: 24px; text-align: center;">
-                <div style="font-size: 2.5rem; font-weight: 800; color: #a78bfa;">""" + str(len(booked_appointments)) + """</div>
-                <div style="color: #e2e8f0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; margin-top: 8px;">Total Appointments</div>
-            </div>
-            <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(16, 185, 129, 0.1)); border: 2px solid rgba(16, 185, 129, 0.5); border-radius: 16px; padding: 24px; text-align: center;">
-                <div style="font-size: 2.5rem; font-weight: 800; color: #34d399;">""" + str(scheduled_count) + """</div>
-                <div style="color: #e2e8f0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; margin-top: 8px;">Scheduled</div>
-            </div>
-            <div style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.3), rgba(6, 182, 212, 0.1)); border: 2px solid rgba(6, 182, 212, 0.5); border-radius: 16px; padding: 24px; text-align: center;">
-                <div style="font-size: 2.5rem; font-weight: 800; color: #22d3ee;">$""" + f"{total_revenue:,}" + """</div>
-                <div style="color: #e2e8f0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; margin-top: 8px;">Total Revenue</div>
-            </div>
-            <div style="background: linear-gradient(135deg, rgba(244, 63, 94, 0.3), rgba(244, 63, 94, 0.1)); border: 2px solid rgba(244, 63, 94, 0.5); border-radius: 16px; padding: 24px; text-align: center;">
-                <div style="font-size: 2.5rem; font-weight: 800; color: #fb7185;">$""" + str(avg_revenue) + """</div>
-                <div style="color: #e2e8f0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; margin-top: 8px;">Avg / Visit</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Appointment Cards Grid
-        st.markdown('<div style="color: #e2e8f0; font-size: 1.1rem; font-weight: 600; margin-bottom: 16px;">📋 Upcoming Appointments</div>', unsafe_allow_html=True)
-        
-        # Create cards in rows of 3
-        for i in range(0, min(len(apt_data), 12), 3):
-            cols = st.columns(3)
-            for j, col in enumerate(cols):
-                if i + j < len(apt_data):
-                    apt = apt_data[i + j]
-                    status_color = "#10b981" if apt["status"] == "SCHEDULED" else "#f59e0b" if apt["status"] == "CONFIRMED" else "#6b7280"
-                    service_icon = "🪥" if "clean" in apt["service"].lower() else "👑" if "crown" in apt["service"].lower() else "🔧" if "canal" in apt["service"].lower() or "extract" in apt["service"].lower() else "✨" if "whiten" in apt["service"].lower() else "🩺"
-                    
-                    with col:
-                        st.markdown(f"""
-                        <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.8)); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 16px; padding: 20px; margin-bottom: 16px; transition: transform 0.2s;">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                                <div>
-                                    <div style="font-size: 1.1rem; font-weight: 700; color: #ffffff;">{apt["patient_name"]}</div>
-                                    <div style="font-size: 0.85rem; color: #94a3b8;">{apt["phone"]}</div>
-                                </div>
-                                <div style="background: {status_color}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">{apt["status"]}</div>
-                            </div>
-                            <div style="border-top: 1px solid rgba(139, 92, 246, 0.2); padding-top: 12px; margin-top: 8px;">
-                                <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                                    <span style="font-size: 1.2rem; margin-right: 8px;">{service_icon}</span>
-                                    <span style="color: #e2e8f0; font-weight: 600;">{apt["service"]}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div style="color: #94a3b8; font-size: 0.9rem;">📅 {apt["date"]}</div>
-                                    <div style="color: #10b981; font-weight: 700; font-size: 1.1rem;">${apt["price"]}</div>
-                                </div>
-                                <div style="color: #64748b; font-size: 0.8rem; margin-top: 8px;">📍 {apt["clinic"]}</div>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-        
-        # Show more in table if many appointments
-        if len(apt_data) > 12:
-            st.markdown("<br>", unsafe_allow_html=True)
-            with st.expander(f"📊 View All {len(apt_data)} Appointments in Table"):
-                df = pd.DataFrame([{
-                    "Patient": a["patient_name"],
-                    "Phone": a["phone"],
-                    "Service": a["service"],
-                    "Date": a["date"],
-                    "Status": a["status"],
-                    "Clinic": a["clinic"],
-                    "Revenue": f"${a['price']}"
-                } for a in apt_data])
-                st.dataframe(df, use_container_width=True, hide_index=True)
-    else:
-        st.markdown("""
-        <div style="background: rgba(30, 41, 59, 0.8); border: 2px dashed rgba(139, 92, 246, 0.4); border-radius: 16px; padding: 60px 40px; text-align: center; margin: 20px 0;">
-            <div style="font-size: 4rem; margin-bottom: 20px;">📅</div>
-            <div style="font-size: 1.5rem; font-weight: 700; color: #e2e8f0; margin-bottom: 10px;">No Appointments Yet</div>
-            <div style="color: #94a3b8; font-size: 1.1rem;">Make a test call to <span style="color: #8b5cf6; font-weight: 600;">+1 (920) 891-4513</span> to see appointments here!</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-# ============================================================================
-# TAB 2: CALENDAR VIEW
-# ============================================================================
-
-with tab2:
-    st.markdown('<div class="section-header">📆 Appointment Calendar</div>', unsafe_allow_html=True)
-    
-    # Calendar CSS
-    st.markdown("""
-    <style>
-    @keyframes calendar-pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.02); }
-    }
-    .calendar-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 8px;
-        margin-top: 20px;
-    }
-    .calendar-header {
-        background: linear-gradient(135deg, #6C63FF, #8B7FFF);
-        color: white;
-        padding: 12px;
-        text-align: center;
-        font-weight: 700;
-        border-radius: 8px;
-        font-size: 0.9rem;
-    }
-    .calendar-day {
-        background: linear-gradient(145deg, #121A2F, #1a2540);
-        border: 1px solid rgba(108, 99, 255, 0.2);
-        border-radius: 12px;
-        min-height: 120px;
-        padding: 10px;
-        transition: all 0.3s ease;
-    }
-    .calendar-day:hover {
-        border-color: #6C63FF;
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(108, 99, 255, 0.2);
-    }
-    .calendar-day-num {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: #9CA3AF;
-        margin-bottom: 8px;
-    }
-    .calendar-day-today {
-        background: linear-gradient(145deg, rgba(108, 99, 255, 0.2), rgba(108, 99, 255, 0.1));
-        border: 2px solid #6C63FF;
-    }
-    .calendar-day-today .calendar-day-num {
-        color: #6C63FF;
-    }
-    .calendar-apt {
-        background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(34, 197, 94, 0.1));
-        border-left: 3px solid #22C55E;
-        border-radius: 6px;
-        padding: 6px 8px;
-        margin-bottom: 6px;
-        font-size: 0.75rem;
-        color: #E5E7EB;
-        animation: calendar-pulse 3s ease-in-out infinite;
-    }
-    .calendar-apt-cleaning { border-left-color: #22C55E; background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(34, 197, 94, 0.1)); }
-    .calendar-apt-crown { border-left-color: #FACC15; background: linear-gradient(135deg, rgba(250, 204, 21, 0.3), rgba(250, 204, 21, 0.1)); }
-    .calendar-apt-extraction { border-left-color: #EF4444; background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(239, 68, 68, 0.1)); }
-    .calendar-apt-whitening { border-left-color: #06B6D4; background: linear-gradient(135deg, rgba(6, 182, 212, 0.3), rgba(6, 182, 212, 0.1)); }
-    .calendar-apt-canal { border-left-color: #F59E0B; background: linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(245, 158, 11, 0.1)); }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Revenue per chair summary
-    num_chairs = 5
-    chair_revenue = total_revenue // num_chairs if total_revenue > 0 else 0
-    
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #6C63FF, #8B7FFF); border-radius: 16px; padding: 20px; text-align: center;">
-            <div style="font-size: 2rem; font-weight: 900; color: white;">{len(booked_appointments)}</div>
-            <div style="color: rgba(255,255,255,0.9); font-size: 0.9rem;">This Week</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #22C55E, #16A34A); border-radius: 16px; padding: 20px; text-align: center;">
-            <div style="font-size: 2rem; font-weight: 900; color: white;">${total_revenue:,}</div>
-            <div style="color: rgba(255,255,255,0.9); font-size: 0.9rem;">Total Revenue</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col3:
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #FACC15, #EAB308); border-radius: 16px; padding: 20px; text-align: center;">
-            <div style="font-size: 2rem; font-weight: 900; color: #0B1220;">${chair_revenue:,}</div>
-            <div style="color: rgba(11,18,32,0.8); font-size: 0.9rem;">Per Chair</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col4:
-        st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #06B6D4, #0891B2); border-radius: 16px; padding: 20px; text-align: center;">
-            <div style="font-size: 2rem; font-weight: 900; color: white;">{num_chairs}</div>
-            <div style="color: rgba(255,255,255,0.9); font-size: 0.9rem;">Active Chairs</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Build calendar
-    from datetime import datetime, timedelta
-    import calendar
-    
-    today = datetime.now()
-    current_month = today.month
-    current_year = today.year
-    
-    # Get appointments grouped by date
-    apt_by_date = {}
-    for apt in booked_appointments:
-        date_str = apt.get("appointment_date", "")[:10] if apt.get("appointment_date") else ""
-        if date_str:
-            if date_str not in apt_by_date:
-                apt_by_date[date_str] = []
-            patient = apt.get("patient") or {}
-            service = apt.get("service_type", "Appointment")
-            apt_by_date[date_str].append({
-                "patient": patient.get("name", "Unknown")[:15],
-                "phone": patient.get("phone", "")[-4:] if patient.get("phone") else "",
-                "service": service[:12],
-                "price": get_service_price(service)
-            })
-    
-    # Calendar header
-    st.markdown(f"### {calendar.month_name[current_month]} {current_year}")
-    
-    # Day headers
-    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    header_html = '<div class="calendar-grid">'
-    for day in days:
-        header_html += f'<div class="calendar-header">{day}</div>'
-    header_html += '</div>'
-    st.markdown(header_html, unsafe_allow_html=True)
-    
-    # Get calendar data
-    cal = calendar.Calendar(firstweekday=0)
-    month_days = cal.monthdayscalendar(current_year, current_month)
-    
-    # Render calendar weeks
-    for week in month_days:
-        week_html = '<div class="calendar-grid">'
-        for day in week:
-            if day == 0:
-                week_html += '<div class="calendar-day" style="opacity: 0.3;"></div>'
-            else:
-                date_str = f"{current_year}-{current_month:02d}-{day:02d}"
-                is_today = (day == today.day and current_month == today.month)
-                day_class = "calendar-day calendar-day-today" if is_today else "calendar-day"
-                
-                week_html += f'<div class="{day_class}">'
-                week_html += f'<div class="calendar-day-num">{day}</div>'
-                
-                # Add appointments for this day
-                if date_str in apt_by_date:
-                    for apt in apt_by_date[date_str][:3]:  # Max 3 per day
-                        service_lower = apt["service"].lower()
-                        apt_class = "calendar-apt"
-                        if "clean" in service_lower:
-                            apt_class += " calendar-apt-cleaning"
-                        elif "crown" in service_lower:
-                            apt_class += " calendar-apt-crown"
-                        elif "extract" in service_lower:
-                            apt_class += " calendar-apt-extraction"
-                        elif "whiten" in service_lower:
-                            apt_class += " calendar-apt-whitening"
-                        elif "canal" in service_lower:
-                            apt_class += " calendar-apt-canal"
-                        
-                        week_html += f'''<div class="{apt_class}">
-                            <div style="font-weight: 600;">{apt["patient"]}</div>
-                            <div style="opacity: 0.8;">{apt["service"]} · ${apt["price"]}</div>
-                        </div>'''
-                    
-                    if len(apt_by_date[date_str]) > 3:
-                        week_html += f'<div style="color: #6C63FF; font-size: 0.7rem; text-align: center;">+{len(apt_by_date[date_str]) - 3} more</div>'
-                
-                week_html += '</div>'
-        week_html += '</div>'
-        st.markdown(week_html, unsafe_allow_html=True)
-    
-    # Legend
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("""
-    <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
-        <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 12px; height: 12px; background: #22C55E; border-radius: 3px;"></div><span style="color: #9CA3AF; font-size: 0.85rem;">Cleaning</span></div>
-        <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 12px; height: 12px; background: #FACC15; border-radius: 3px;"></div><span style="color: #9CA3AF; font-size: 0.85rem;">Crown</span></div>
-        <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 12px; height: 12px; background: #EF4444; border-radius: 3px;"></div><span style="color: #9CA3AF; font-size: 0.85rem;">Extraction</span></div>
-        <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 12px; height: 12px; background: #06B6D4; border-radius: 3px;"></div><span style="color: #9CA3AF; font-size: 0.85rem;">Whitening</span></div>
-        <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 12px; height: 12px; background: #F59E0B; border-radius: 3px;"></div><span style="color: #9CA3AF; font-size: 0.85rem;">Root Canal</span></div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# ============================================================================
-# TAB 3: PATIENTS
-# ============================================================================
-
-with tab3:
-    st.markdown('<div class="section-header">👥 Patient Profiles</div>', unsafe_allow_html=True)
-    
-    # Fetch patients from API
-    try:
-        patients_resp = requests.get(f"{API_BASE}/patients", timeout=5)
-        patients_list = patients_resp.json() if patients_resp.status_code == 200 else []
-    except:
-        patients_list = []
-    
-    if patients_list:
-        # Search filter
-        search_term = st.text_input("🔍 Search patients by name or phone", "", key="patient_search")
-        
-        filtered_patients = patients_list
-        if search_term:
-            filtered_patients = [p for p in patients_list if 
-                search_term.lower() in p.get("name", "").lower() or 
-                search_term in p.get("phone", "")]
-        
-        # Summary stats
-        total_ltv = sum(len(p.get('appointments', [])) * 150 for p in filtered_patients)
-        st.markdown(f"""
-        <div style="display: flex; gap: 20px; margin-bottom: 24px; flex-wrap: wrap;">
-            <div style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); padding: 16px 24px; border-radius: 12px;">
-                <div style="font-size: 1.8rem; font-weight: 800; color: #a78bfa;">{len(filtered_patients)}</div>
-                <div style="color: #e2e8f0; font-size: 0.85rem;">Total Patients</div>
-            </div>
-            <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); padding: 16px 24px; border-radius: 12px;">
-                <div style="font-size: 1.8rem; font-weight: 800; color: #34d399;">${total_ltv:,}</div>
-                <div style="color: #e2e8f0; font-size: 0.85rem;">Total Lifetime Value</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Patient cards in grid
-        for i in range(0, min(len(filtered_patients), 12), 3):
-            cols = st.columns(3)
-            for j, col in enumerate(cols):
-                if i + j < len(filtered_patients):
-                    patient = filtered_patients[i + j]
-                    name = patient.get('name', 'Unknown')
-                    phone = patient.get('phone', 'N/A')
-                    email = patient.get('email') or ''
-                    provider = patient.get('insurance_provider') or ''
-                    appointments = patient.get('appointments') or []
-                    ltv = len(appointments) * 150
-                    email_display = (email[:20] + '...') if email and len(email) > 20 else (email if email else 'No email')
-                    
-                    with col:
-                        st.markdown(f"""
-                        <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.8)); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 16px; padding: 20px; margin-bottom: 16px;">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                <div>
-                                    <div style="font-size: 1.1rem; font-weight: 700; color: #ffffff;">👤 {name}</div>
-                                    <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">{phone}</div>
-                                </div>
-                                <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 6px 12px; border-radius: 8px; font-weight: 700;">${ltv}</div>
-                            </div>
-                            <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(139, 92, 246, 0.2);">
-                                <div style="display: flex; justify-content: space-between; color: #e2e8f0; font-size: 0.9rem;">
-                                    <span>📧 {email_display}</span>
-                                </div>
-                                <div style="margin-top: 8px; color: #a5b4fc; font-size: 0.85rem;">
-                                    🏥 {provider if provider else 'No insurance'}
-                                </div>
-                                <div style="margin-top: 8px; color: #6b7280; font-size: 0.8rem;">
-                                    📅 {len(appointments)} appointment{'s' if len(appointments) != 1 else ''}
-                                </div>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div style="background: rgba(30, 41, 59, 0.8); border: 2px dashed rgba(139, 92, 246, 0.4); border-radius: 16px; padding: 60px 40px; text-align: center;">
-            <div style="font-size: 4rem; margin-bottom: 20px;">👥</div>
-            <div style="font-size: 1.5rem; font-weight: 700; color: #ffffff; margin-bottom: 10px;">No Patients Yet</div>
-            <div style="color: #94a3b8; font-size: 1.1rem;">Patients are created when they call and book appointments</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Sample patient cards
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<div style="color: #ffffff; font-size: 1.1rem; font-weight: 600; margin-bottom: 16px;">📋 Sample Patient Cards</div>', unsafe_allow_html=True)
-        
-        sample_cols = st.columns(3)
-        samples = [
-            {"name": "John Smith", "phone": "+1 (555) 123-4567", "email": "john@email.com", "insurance": "Delta Dental", "ltv": 1850, "visits": 12},
-            {"name": "Sarah Johnson", "phone": "+1 (555) 987-6543", "email": "sarah@email.com", "insurance": "Cigna", "ltv": 920, "visits": 6},
-            {"name": "Mike Brown", "phone": "+1 (555) 456-7890", "email": "mike@email.com", "insurance": "Aetna", "ltv": 450, "visits": 3},
-        ]
-        for idx, col in enumerate(sample_cols):
-            s = samples[idx]
-            with col:
-                st.markdown(f"""
-                <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.8)); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 16px; padding: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div>
-                            <div style="font-size: 1.1rem; font-weight: 700; color: #ffffff;">👤 {s['name']}</div>
-                            <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">{s['phone']}</div>
-                        </div>
-                        <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 6px 12px; border-radius: 8px; font-weight: 700;">${s['ltv']}</div>
-                    </div>
-                    <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(139, 92, 246, 0.2);">
-                        <div style="color: #e2e8f0; font-size: 0.9rem;">📧 {s['email']}</div>
-                        <div style="margin-top: 8px; color: #a5b4fc; font-size: 0.85rem;">🏥 {s['insurance']}</div>
-                        <div style="margin-top: 8px; color: #6b7280; font-size: 0.8rem;">📅 {s['visits']} appointments</div>
-                    </div>
+            # Premium Summary Cards
+            st.markdown("""
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 30px;">
+                <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(139, 92, 246, 0.1)); border: 2px solid rgba(139, 92, 246, 0.5); border-radius: 16px; padding: 24px; text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: 800; color: #a78bfa;">""" + str(len(booked_appointments)) + """</div>
+                    <div style="color: #e2e8f0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; margin-top: 8px;">Total Appointments</div>
                 </div>
-                """, unsafe_allow_html=True)
+                <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(16, 185, 129, 0.1)); border: 2px solid rgba(16, 185, 129, 0.5); border-radius: 16px; padding: 24px; text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: 800; color: #34d399;">""" + str(scheduled_count) + """</div>
+                    <div style="color: #e2e8f0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; margin-top: 8px;">Scheduled</div>
+                </div>
+                <div style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.3), rgba(6, 182, 212, 0.1)); border: 2px solid rgba(6, 182, 212, 0.5); border-radius: 16px; padding: 24px; text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: 800; color: #22d3ee;">$""" + f"{total_revenue:,}" + """</div>
+                    <div style="color: #e2e8f0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; margin-top: 8px;">Total Revenue</div>
+                </div>
+                <div style="background: linear-gradient(135deg, rgba(244, 63, 94, 0.3), rgba(244, 63, 94, 0.1)); border: 2px solid rgba(244, 63, 94, 0.5); border-radius: 16px; padding: 24px; text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: 800; color: #fb7185;">$""" + str(avg_revenue) + """</div>
+                    <div style="color: #e2e8f0; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; margin-top: 8px;">Avg / Visit</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
         
-# ============================================================================
-# TAB 4: CONVERSATIONS
-# ============================================================================
+            # Appointment Cards Grid
+            st.markdown('<div style="color: #e2e8f0; font-size: 1.1rem; font-weight: 600; margin-bottom: 16px;">📋 Upcoming Appointments</div>', unsafe_allow_html=True)
+        
+            # Create cards in rows of 3
+            for i in range(0, min(len(apt_data), 12), 3):
+                cols = st.columns(3)
+                for j, col in enumerate(cols):
+                    if i + j < len(apt_data):
+                        apt = apt_data[i + j]
+                        status_color = "#10b981" if apt["status"] == "SCHEDULED" else "#f59e0b" if apt["status"] == "CONFIRMED" else "#6b7280"
+                        service_icon = "🪥" if "clean" in apt["service"].lower() else "👑" if "crown" in apt["service"].lower() else "🔧" if "canal" in apt["service"].lower() or "extract" in apt["service"].lower() else "✨" if "whiten" in apt["service"].lower() else "🩺"
+                    
+                        with col:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.8)); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 16px; padding: 20px; margin-bottom: 16px; transition: transform 0.2s;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                                    <div>
+                                        <div style="font-size: 1.1rem; font-weight: 700; color: #ffffff;">{apt["patient_name"]}</div>
+                                        <div style="font-size: 0.85rem; color: #94a3b8;">{apt["phone"]}</div>
+                                    </div>
+                                    <div style="background: {status_color}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">{apt["status"]}</div>
+                                </div>
+                                <div style="border-top: 1px solid rgba(139, 92, 246, 0.2); padding-top: 12px; margin-top: 8px;">
+                                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                                        <span style="font-size: 1.2rem; margin-right: 8px;">{service_icon}</span>
+                                        <span style="color: #e2e8f0; font-weight: 600;">{apt["service"]}</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div style="color: #94a3b8; font-size: 0.9rem;">📅 {apt["date"]}</div>
+                                        <div style="color: #10b981; font-weight: 700; font-size: 1.1rem;">${apt["price"]}</div>
+                                    </div>
+                                    <div style="color: #64748b; font-size: 0.8rem; margin-top: 8px;">📍 {apt["clinic"]}</div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+        
+            # Show more in table if many appointments
+            if len(apt_data) > 12:
+                st.markdown("<br>", unsafe_allow_html=True)
+                with st.expander(f"📊 View All {len(apt_data)} Appointments in Table"):
+                    df = pd.DataFrame([{
+                        "Patient": a["patient_name"],
+                        "Phone": a["phone"],
+                        "Service": a["service"],
+                        "Date": a["date"],
+                        "Status": a["status"],
+                        "Clinic": a["clinic"],
+                        "Revenue": f"${a['price']}"
+                    } for a in apt_data])
+                    st.dataframe(df, use_container_width=True, hide_index=True)
+        else:
+            st.markdown("""
+            <div style="background: rgba(30, 41, 59, 0.8); border: 2px dashed rgba(139, 92, 246, 0.4); border-radius: 16px; padding: 60px 40px; text-align: center; margin: 20px 0;">
+                <div style="font-size: 4rem; margin-bottom: 20px;">📅</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: #e2e8f0; margin-bottom: 10px;">No Appointments Yet</div>
+                <div style="color: #94a3b8; font-size: 1.1rem;">Make a test call to <span style="color: #8b5cf6; font-weight: 600;">+1 (920) 891-4513</span> to see appointments here!</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-with tab4:
-    st.markdown('<div class="section-header">💬 Conversation Summaries</div>', unsafe_allow_html=True)
+    # ============================================================================
+    # TAB 2: CALENDAR VIEW
+    # ============================================================================
+
+    with tab2:
+        st.markdown('<div class="section-header">📆 Appointment Calendar</div>', unsafe_allow_html=True)
     
-    # Fetch call logs
-    try:
-        calls_resp = requests.get(f"{API_BASE}/calls", timeout=5)
-        calls_list = calls_resp.json() if calls_resp.status_code == 200 else []
-    except:
-        calls_list = []
+        # Calendar CSS
+        st.markdown("""
+        <style>
+        @keyframes calendar-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-top: 20px;
+        }
+        .calendar-header {
+            background: linear-gradient(135deg, #6C63FF, #8B7FFF);
+            color: white;
+            padding: 12px;
+            text-align: center;
+            font-weight: 700;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        .calendar-day {
+            background: linear-gradient(145deg, #121A2F, #1a2540);
+            border: 1px solid rgba(108, 99, 255, 0.2);
+            border-radius: 12px;
+            min-height: 120px;
+            padding: 10px;
+            transition: all 0.3s ease;
+        }
+        .calendar-day:hover {
+            border-color: #6C63FF;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(108, 99, 255, 0.2);
+        }
+        .calendar-day-num {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #9CA3AF;
+            margin-bottom: 8px;
+        }
+        .calendar-day-today {
+            background: linear-gradient(145deg, rgba(108, 99, 255, 0.2), rgba(108, 99, 255, 0.1));
+            border: 2px solid #6C63FF;
+        }
+        .calendar-day-today .calendar-day-num {
+            color: #6C63FF;
+        }
+        .calendar-apt {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(34, 197, 94, 0.1));
+            border-left: 3px solid #22C55E;
+            border-radius: 6px;
+            padding: 6px 8px;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+            color: #E5E7EB;
+            animation: calendar-pulse 3s ease-in-out infinite;
+        }
+        .calendar-apt-cleaning { border-left-color: #22C55E; background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(34, 197, 94, 0.1)); }
+        .calendar-apt-crown { border-left-color: #FACC15; background: linear-gradient(135deg, rgba(250, 204, 21, 0.3), rgba(250, 204, 21, 0.1)); }
+        .calendar-apt-extraction { border-left-color: #EF4444; background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(239, 68, 68, 0.1)); }
+        .calendar-apt-whitening { border-left-color: #06B6D4; background: linear-gradient(135deg, rgba(6, 182, 212, 0.3), rgba(6, 182, 212, 0.1)); }
+        .calendar-apt-canal { border-left-color: #F59E0B; background: linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(245, 158, 11, 0.1)); }
+        </style>
+        """, unsafe_allow_html=True)
     
-    if calls_list:
-        # Summary tiles
-        booked_calls = len([c for c in calls_list if c.get("outcome") == "booked"])
-        escalated_calls = len([c for c in calls_list if c.get("outcome") == "escalated"])
-        avg_sentiment = sum((c.get("sentiment_score") or 0.5) for c in calls_list) / len(calls_list) if calls_list else 0.5
-        avg_duration = sum((c.get("duration") or 0) for c in calls_list) / len(calls_list) if calls_list else 0
-        
+        # Revenue per chair summary
+        num_chairs = 5
+        chair_revenue = total_revenue // num_chairs if total_revenue > 0 else 0
+    
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.markdown(f"""
-            <div style="background: rgba(108, 99, 255, 0.15); border: 1px solid rgba(108, 99, 255, 0.4); border-radius: 12px; padding: 18px; text-align: center;">
-                <div style="font-size: 2rem; font-weight: 900; color: #6C63FF;">{len(calls_list)}</div>
-                <div style="color: #E5E7EB; font-size: 0.85rem; margin-top: 4px;">Total Calls</div>
+            <div style="background: linear-gradient(135deg, #6C63FF, #8B7FFF); border-radius: 16px; padding: 20px; text-align: center;">
+                <div style="font-size: 2rem; font-weight: 900; color: white;">{len(booked_appointments)}</div>
+                <div style="color: rgba(255,255,255,0.9); font-size: 0.9rem;">This Week</div>
             </div>
             """, unsafe_allow_html=True)
         with col2:
             st.markdown(f"""
-            <div style="background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 12px; padding: 18px; text-align: center;">
-                <div style="font-size: 2rem; font-weight: 900; color: #22C55E;">{booked_calls}</div>
-                <div style="color: #E5E7EB; font-size: 0.85rem; margin-top: 4px;">Booked</div>
+            <div style="background: linear-gradient(135deg, #22C55E, #16A34A); border-radius: 16px; padding: 20px; text-align: center;">
+                <div style="font-size: 2rem; font-weight: 900; color: white;">${total_revenue:,}</div>
+                <div style="color: rgba(255,255,255,0.9); font-size: 0.9rem;">Total Revenue</div>
             </div>
             """, unsafe_allow_html=True)
         with col3:
             st.markdown(f"""
-            <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 12px; padding: 18px; text-align: center;">
-                <div style="font-size: 2rem; font-weight: 900; color: #F59E0B;">{int(avg_sentiment * 100)}%</div>
-                <div style="color: #E5E7EB; font-size: 0.85rem; margin-top: 4px;">Avg Sentiment</div>
+            <div style="background: linear-gradient(135deg, #FACC15, #EAB308); border-radius: 16px; padding: 20px; text-align: center;">
+                <div style="font-size: 2rem; font-weight: 900; color: #0B1220;">${chair_revenue:,}</div>
+                <div style="color: rgba(11,18,32,0.8); font-size: 0.9rem;">Per Chair</div>
             </div>
             """, unsafe_allow_html=True)
         with col4:
             st.markdown(f"""
-            <div style="background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.4); border-radius: 12px; padding: 18px; text-align: center;">
-                <div style="font-size: 2rem; font-weight: 900; color: #06B6D4;">{int(avg_duration)}s</div>
-                <div style="color: #E5E7EB; font-size: 0.85rem; margin-top: 4px;">Avg Duration</div>
+            <div style="background: linear-gradient(135deg, #06B6D4, #0891B2); border-radius: 16px; padding: 20px; text-align: center;">
+                <div style="font-size: 2rem; font-weight: 900; color: white;">{num_chairs}</div>
+                <div style="color: rgba(255,255,255,0.9); font-size: 0.9rem;">Active Chairs</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+        st.markdown("<br>", unsafe_allow_html=True)
+    
+        # Build calendar
+        from datetime import datetime, timedelta
+        import calendar
+    
+        today = datetime.now()
+        current_month = today.month
+        current_year = today.year
+    
+        # Get appointments grouped by date
+        apt_by_date = {}
+        for apt in booked_appointments:
+            date_str = apt.get("appointment_date", "")[:10] if apt.get("appointment_date") else ""
+            if date_str:
+                if date_str not in apt_by_date:
+                    apt_by_date[date_str] = []
+                patient = apt.get("patient") or {}
+                service = apt.get("service_type", "Appointment")
+                apt_by_date[date_str].append({
+                    "patient": patient.get("name", "Unknown")[:15],
+                    "phone": patient.get("phone", "")[-4:] if patient.get("phone") else "",
+                    "service": service[:12],
+                    "price": get_service_price(service)
+                })
+    
+        # Calendar header
+        st.markdown(f"### {calendar.month_name[current_month]} {current_year}")
+    
+        # Day headers
+        days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        header_html = '<div class="calendar-grid">'
+        for day in days:
+            header_html += f'<div class="calendar-header">{day}</div>'
+        header_html += '</div>'
+        st.markdown(header_html, unsafe_allow_html=True)
+    
+        # Get calendar data
+        cal = calendar.Calendar(firstweekday=0)
+        month_days = cal.monthdayscalendar(current_year, current_month)
+    
+        # Render calendar weeks
+        for week in month_days:
+            week_html = '<div class="calendar-grid">'
+            for day in week:
+                if day == 0:
+                    week_html += '<div class="calendar-day" style="opacity: 0.3;"></div>'
+                else:
+                    date_str = f"{current_year}-{current_month:02d}-{day:02d}"
+                    is_today = (day == today.day and current_month == today.month)
+                    day_class = "calendar-day calendar-day-today" if is_today else "calendar-day"
+                
+                    week_html += f'<div class="{day_class}">'
+                    week_html += f'<div class="calendar-day-num">{day}</div>'
+                
+                    # Add appointments for this day
+                    if date_str in apt_by_date:
+                        for apt in apt_by_date[date_str][:3]:  # Max 3 per day
+                            service_lower = apt["service"].lower()
+                            apt_class = "calendar-apt"
+                            if "clean" in service_lower:
+                                apt_class += " calendar-apt-cleaning"
+                            elif "crown" in service_lower:
+                                apt_class += " calendar-apt-crown"
+                            elif "extract" in service_lower:
+                                apt_class += " calendar-apt-extraction"
+                            elif "whiten" in service_lower:
+                                apt_class += " calendar-apt-whitening"
+                            elif "canal" in service_lower:
+                                apt_class += " calendar-apt-canal"
+                        
+                            week_html += f'''<div class="{apt_class}">
+                                <div style="font-weight: 600;">{apt["patient"]}</div>
+                                <div style="opacity: 0.8;">{apt["service"]} · ${apt["price"]}</div>
+                            </div>'''
+                    
+                        if len(apt_by_date[date_str]) > 3:
+                            week_html += f'<div style="color: #6C63FF; font-size: 0.7rem; text-align: center;">+{len(apt_by_date[date_str]) - 3} more</div>'
+                
+                    week_html += '</div>'
+            week_html += '</div>'
+            st.markdown(week_html, unsafe_allow_html=True)
+    
+        # Legend
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("""
+        <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
+            <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 12px; height: 12px; background: #22C55E; border-radius: 3px;"></div><span style="color: #9CA3AF; font-size: 0.85rem;">Cleaning</span></div>
+            <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 12px; height: 12px; background: #FACC15; border-radius: 3px;"></div><span style="color: #9CA3AF; font-size: 0.85rem;">Crown</span></div>
+            <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 12px; height: 12px; background: #EF4444; border-radius: 3px;"></div><span style="color: #9CA3AF; font-size: 0.85rem;">Extraction</span></div>
+            <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 12px; height: 12px; background: #06B6D4; border-radius: 3px;"></div><span style="color: #9CA3AF; font-size: 0.85rem;">Whitening</span></div>
+            <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 12px; height: 12px; background: #F59E0B; border-radius: 3px;"></div><span style="color: #9CA3AF; font-size: 0.85rem;">Root Canal</span></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ============================================================================
+    # TAB 3: PATIENTS
+    # ============================================================================
+
+    with tab3:
+        st.markdown('<div class="section-header">👥 Patient Profiles</div>', unsafe_allow_html=True)
+    
+        # Fetch patients from API
+        try:
+            patients_resp = requests.get(f"{API_BASE}/patients", timeout=5)
+            patients_list = patients_resp.json() if patients_resp.status_code == 200 else []
+        except:
+            patients_list = []
+    
+        if patients_list:
+            # Search filter
+            search_term = st.text_input("🔍 Search patients by name or phone", "", key="patient_search")
+        
+            filtered_patients = patients_list
+            if search_term:
+                filtered_patients = [p for p in patients_list if 
+                    search_term.lower() in p.get("name", "").lower() or 
+                    search_term in p.get("phone", "")]
+        
+            # Summary stats
+            total_ltv = sum(len(p.get('appointments', [])) * 150 for p in filtered_patients)
+            st.markdown(f"""
+            <div style="display: flex; gap: 20px; margin-bottom: 24px; flex-wrap: wrap;">
+                <div style="background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); padding: 16px 24px; border-radius: 12px;">
+                    <div style="font-size: 1.8rem; font-weight: 800; color: #a78bfa;">{len(filtered_patients)}</div>
+                    <div style="color: #e2e8f0; font-size: 0.85rem;">Total Patients</div>
+                </div>
+                <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); padding: 16px 24px; border-radius: 12px;">
+                    <div style="font-size: 1.8rem; font-weight: 800; color: #34d399;">${total_ltv:,}</div>
+                    <div style="color: #e2e8f0; font-size: 0.85rem;">Total Lifetime Value</div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
         
-        st.markdown("<br>", unsafe_allow_html=True)
+            # Patient cards in grid
+            for i in range(0, min(len(filtered_patients), 12), 3):
+                cols = st.columns(3)
+                for j, col in enumerate(cols):
+                    if i + j < len(filtered_patients):
+                        patient = filtered_patients[i + j]
+                        name = patient.get('name', 'Unknown')
+                        phone = patient.get('phone', 'N/A')
+                        email = patient.get('email') or ''
+                        provider = patient.get('insurance_provider') or ''
+                        appointments = patient.get('appointments') or []
+                        ltv = len(appointments) * 150
+                        email_display = (email[:20] + '...') if email and len(email) > 20 else (email if email else 'No email')
+                    
+                        with col:
+                            st.markdown(f"""
+                            <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.8)); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 16px; padding: 20px; margin-bottom: 16px;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                    <div>
+                                        <div style="font-size: 1.1rem; font-weight: 700; color: #ffffff;">👤 {name}</div>
+                                        <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">{phone}</div>
+                                    </div>
+                                    <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 6px 12px; border-radius: 8px; font-weight: 700;">${ltv}</div>
+                                </div>
+                                <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(139, 92, 246, 0.2);">
+                                    <div style="display: flex; justify-content: space-between; color: #e2e8f0; font-size: 0.9rem;">
+                                        <span>📧 {email_display}</span>
+                                    </div>
+                                    <div style="margin-top: 8px; color: #a5b4fc; font-size: 0.85rem;">
+                                        🏥 {provider if provider else 'No insurance'}
+                                    </div>
+                                    <div style="margin-top: 8px; color: #6b7280; font-size: 0.8rem;">
+                                        📅 {len(appointments)} appointment{'s' if len(appointments) != 1 else ''}
+                                    </div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="background: rgba(30, 41, 59, 0.8); border: 2px dashed rgba(139, 92, 246, 0.4); border-radius: 16px; padding: 60px 40px; text-align: center;">
+                <div style="font-size: 4rem; margin-bottom: 20px;">👥</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: #ffffff; margin-bottom: 10px;">No Patients Yet</div>
+                <div style="color: #94a3b8; font-size: 1.1rem;">Patients are created when they call and book appointments</div>
+            </div>
+            """, unsafe_allow_html=True)
         
-        # Filter options
-        col1, col2 = st.columns(2)
-        with col1:
-            outcome_filter = st.selectbox("Filter by Outcome", 
-                ["All", "Booked", "Inquiry Answered", "Escalated", "Cancelled"])
-        with col2:
-            sort_by = st.selectbox("Sort by", ["Most Recent", "Longest Duration", "Highest Sentiment"])
+            # Sample patient cards
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown('<div style="color: #ffffff; font-size: 1.1rem; font-weight: 600; margin-bottom: 16px;">📋 Sample Patient Cards</div>', unsafe_allow_html=True)
         
-        # Filter calls
-        filtered_calls = calls_list
-        if outcome_filter != "All":
-            filtered_calls = [c for c in calls_list if c.get("outcome", "").lower() == outcome_filter.lower().replace(" ", "_")]
-        
-        for call in filtered_calls[:15]:
-            patient = call.get("patient") or {}
-            outcome = call.get("outcome") or "unknown"
-            duration = call.get("duration") or 0
-            sentiment = call.get("sentiment_score") or 0.5
-            
-            # Outcome color
-            outcome_colors = {
-                "booked": "#10b981",
-                "inquiry_answered": "#06b6d4",
-                "escalated": "#f59e0b",
-                "cancelled": "#ef4444"
-            }
-            outcome_color = outcome_colors.get(outcome.lower(), "#6b7280")
-            
-            # Sentiment indicator
-            sentiment_emoji = "😊" if sentiment > 0.6 else "😐" if sentiment > 0.3 else "😟"
-            
-            with st.expander(f"{sentiment_emoji} {patient.get('name', 'Unknown Caller')} | {call.get('caller_phone', 'N/A')} | {outcome.upper()}", expanded=False):
-                col1, col2, col3, col4 = st.columns(4)
-                
-                with col1:
-                    st.metric("⏱️ Duration", f"{duration}s")
-                with col2:
-                    st.metric("📊 Sentiment", f"{int(sentiment * 100)}%")
-                with col3:
-                    st.metric("🎯 Outcome", outcome.replace("_", " ").title())
-                with col4:
-                    intent = call.get("intent", "general")
-                    st.metric("💡 Intent", intent.replace("_", " ").title() if intent else "General")
-                
-                st.markdown("---")
-                st.markdown("**📝 Conversation Summary**")
-                transcript = call.get("transcript", "")
-                if transcript:
-                    # Show first 500 chars of transcript
-                    st.text_area("", transcript[:500] + ("..." if len(transcript) > 500 else ""), 
-                                height=120, disabled=True, key=f"transcript_{call.get('id', '')}")
-                else:
-                    st.write("No transcript available")
-                
-                # Potential revenue
-                if outcome == "booked":
-                    st.success("💰 **Revenue Impact:** Appointment booked - Est. $150-$200")
-                elif outcome == "escalated":
-                    st.warning("⚠️ **Action Required:** Follow up with patient")
-    else:
-        st.info("No conversation logs yet. Make a test call to see summaries here!")
-        
-        # Demo conversation
-        st.markdown("### Sample Conversation Summary")
-        with st.expander("😊 Sarah Johnson | +1 (555) 987-6543 | BOOKED", expanded=True):
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("⏱️ Duration", "127s")
-            with col2:
-                st.metric("📊 Sentiment", "85%")
-            with col3:
-                st.metric("🎯 Outcome", "Booked")
-            with col4:
-                st.metric("💡 Intent", "New Appointment")
-            
-            st.markdown("---")
-            st.markdown("**📝 Conversation Summary**")
-            st.text_area("", """Dentsi: Hello and welcome to SmileCare Dental! This is Dentsi, your AI assistant. How can I help you today?
-
-Patient: Hi, I'd like to schedule a teeth cleaning.
-
-Dentsi: Wonderful! I'd be happy to help you with that. Let me check our availability. Do you have a preferred day?
-
-Patient: Maybe next Tuesday?
-
-Dentsi: I have Tuesday, January 28th at 10am or 2pm available. Which works better for you?
-
-Patient: 2pm sounds good.
-
-Dentsi: Perfect! Before I confirm, do you have dental insurance?
-
-Patient: Yes, Delta Dental.
-
-Dentsi: Great! And your member ID?
-
-Patient: DD789456123
-
-Dentsi: Got it! You're all set for a cleaning on Tuesday, January 28th at 2pm. You'll receive a text confirmation. We're looking forward to seeing you!""", 
-                        height=200, disabled=True)
-            st.success("💰 **Revenue Impact:** Cleaning booked - Est. $120")
-
-# ============================================================================
-# TAB 5: TEXT & SMS (mock — Batch 1)
-# ============================================================================
-
-with tab5:
-    st.markdown('<div class="section-header">📱 Text & SMS (mock)</div>', unsafe_allow_html=True)
-    st.caption("Inbound/outbound SMS handled by Dentsi — mock threads for UI preview. Batch 2: connect Twilio Messaging + backend inbox.")
-
-    for thread in MOCK_TEXT_THREADS:
-        with st.expander(f"**{thread['patient']}** · {thread['phone']} · _{thread['last_at']}_", expanded=False):
-            for msg in thread["messages"]:
-                is_out = msg["dir"] == "out"
-                align = "flex-end" if is_out else "flex-start"
-                bg = "linear-gradient(135deg, rgba(108,99,255,0.35), rgba(108,99,255,0.12))" if is_out else "linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.06))"
-                border = "rgba(108,99,255,0.45)" if is_out else "rgba(34,197,94,0.35)"
-                who = "Dentsi" if is_out else thread["patient"].split()[0]
-                body_esc = html.escape(msg["body"])
-                at_esc = html.escape(msg["at"])
-                who_esc = html.escape(who)
-                st.markdown(f"""
-                <div style="display:flex; justify-content:{align}; margin-bottom:10px;">
-                    <div style="max-width:78%; background:{bg}; border:1px solid {border}; border-radius:14px; padding:12px 16px;">
-                        <div style="font-size:0.72rem; color:#94a3b8; margin-bottom:4px;">{who_esc} · {at_esc}</div>
-                        <div style="color:#e2e8f0; font-size:0.95rem; line-height:1.45;">{body_esc}</div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-
-# ============================================================================
-# TAB 6: DOCTORS
-# ============================================================================
-
-with tab6:
-    st.markdown('<div class="section-header">👨‍⚕️ Doctors & Availability</div>', unsafe_allow_html=True)
-    
-    # Doctor tiles in rows of 3
-    for row_start in range(0, len(DOCTORS), 3):
-        cols = st.columns(3, gap="medium")
-        for i, col in enumerate(cols):
-            doc_idx = row_start + i
-            if doc_idx < len(DOCTORS):
-                doc = DOCTORS[doc_idx]
-                status_color = "#22C55E" if doc["available"] else "#EF4444"
-                status_text = "Available" if doc["available"] else "Busy"
-                status_bg = "rgba(34, 197, 94, 0.15)" if doc["available"] else "rgba(239, 68, 68, 0.15)"
-                
+            sample_cols = st.columns(3)
+            samples = [
+                {"name": "John Smith", "phone": "+1 (555) 123-4567", "email": "john@email.com", "insurance": "Delta Dental", "ltv": 1850, "visits": 12},
+                {"name": "Sarah Johnson", "phone": "+1 (555) 987-6543", "email": "sarah@email.com", "insurance": "Cigna", "ltv": 920, "visits": 6},
+                {"name": "Mike Brown", "phone": "+1 (555) 456-7890", "email": "mike@email.com", "insurance": "Aetna", "ltv": 450, "visits": 3},
+            ]
+            for idx, col in enumerate(sample_cols):
+                s = samples[idx]
                 with col:
                     st.markdown(f"""
-<div style="background: linear-gradient(145deg, #121A2F, #0B1220); border: 1px solid rgba(108, 99, 255, 0.3); border-radius: 16px; padding: 20px; margin-bottom: 16px;">
-<div style="font-size: 1.15rem; font-weight: 700; color: #E5E7EB; margin-bottom: 6px;">👨‍⚕️ {doc['name']}</div>
-<div style="font-size: 0.9rem; color: #6C63FF; margin-bottom: 4px;">{doc['specialty']}</div>
-<div style="font-size: 0.85rem; color: #9CA3AF; margin-bottom: 12px;">📍 {doc['clinic']}</div>
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-<span style="background: {status_bg}; color: {status_color}; padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">{status_text}</span>
-<span style="color: #FACC15; font-size: 1.2rem; font-weight: 800;">${doc['revenue']:,}</span>
-</div>
-<div style="font-size: 0.8rem; color: #6B7280;">{doc['appointments']} appointments today</div>
-</div>
+                    <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.8)); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 16px; padding: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div>
+                                <div style="font-size: 1.1rem; font-weight: 700; color: #ffffff;">👤 {s['name']}</div>
+                                <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">{s['phone']}</div>
+                            </div>
+                            <div style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 6px 12px; border-radius: 8px; font-weight: 700;">${s['ltv']}</div>
+                        </div>
+                        <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(139, 92, 246, 0.2);">
+                            <div style="color: #e2e8f0; font-size: 0.9rem;">📧 {s['email']}</div>
+                            <div style="margin-top: 8px; color: #a5b4fc; font-size: 0.85rem;">🏥 {s['insurance']}</div>
+                            <div style="margin-top: 8px; color: #6b7280; font-size: 0.8rem;">📅 {s['visits']} appointments</div>
+                        </div>
+                    </div>
                     """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<div class="section-header">📊 Performance by Doctor</div>', unsafe_allow_html=True)
-    
-    doc_df = pd.DataFrame(DOCTORS)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        fig = px.bar(doc_df, x="name", y="appointments", 
-                     title="Appointments Today",
-                     color="appointments",
-                     color_continuous_scale=["#8b5cf6", "#06b6d4"])
-        fig.update_layout(
-            template="plotly_dark", 
-            paper_bgcolor="rgba(0,0,0,0)", 
-            plot_bgcolor="rgba(0,0,0,0)", 
-            height=350,
-            showlegend=False,
-            xaxis_title="",
-            yaxis_title="Appointments"
-        )
-        fig.update_xaxes(tickangle=45)
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        fig = px.bar(doc_df, x="name", y="revenue", 
-                     title="Revenue Today",
-                     color="revenue",
-                     color_continuous_scale=["#10b981", "#06b6d4"])
-        fig.update_layout(
-            template="plotly_dark", 
-            paper_bgcolor="rgba(0,0,0,0)", 
-            plot_bgcolor="rgba(0,0,0,0)", 
-            height=350,
-            showlegend=False,
-            xaxis_title="",
-            yaxis_title="Revenue ($)"
-        )
-        fig.update_xaxes(tickangle=45)
-        st.plotly_chart(fig, use_container_width=True)
-
-# ============================================================================
-# TAB 7: REVENUE
-# ============================================================================
-
-with tab7:
-    st.markdown('<div class="section-header">💰 Revenue Analytics</div>', unsafe_allow_html=True)
-    
-    total_doc_revenue = sum(d["revenue"] for d in DOCTORS)
-    num_chairs = 5
-    revenue_per_chair = total_doc_revenue // num_chairs
-    total_patients = sum(d["appointments"] for d in DOCTORS)
-    avg_per_patient = total_doc_revenue // total_patients if total_patients else 0
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown(f"""
-        <div class="revenue-box">
-            <div style="font-size: 1rem; opacity: 0.9;">Total Revenue Today</div>
-            <div style="font-size: 2.8rem; font-weight: 800; margin: 10px 0;">${total_doc_revenue:,}</div>
-            <div style="font-size: 0.9rem;">↑ 12% vs yesterday</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"""
-        <div class="revenue-box-purple">
-            <div style="font-size: 1rem; opacity: 0.9;">Revenue Per Chair</div>
-            <div style="font-size: 2.8rem; font-weight: 800; margin: 10px 0;">${revenue_per_chair:,}</div>
-            <div style="font-size: 0.9rem;">{num_chairs} chairs active</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown(f"""
-        <div class="revenue-box-cyan">
-            <div style="font-size: 1rem; opacity: 0.9;">Avg Per Patient</div>
-            <div style="font-size: 2.8rem; font-weight: 800; margin: 10px 0;">${avg_per_patient}</div>
-            <div style="font-size: 0.9rem;">{total_patients} patients today</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("### Revenue by Service")
-        service_data = pd.DataFrame({
-            "Service": ["Cleaning", "Root Canal", "Crown", "Filling", "Whitening", "Implant"],
-            "Revenue": [3600, 6000, 4800, 2500, 1600, 7000],
-            "Count": [30, 4, 4, 10, 4, 2]
-        })
-        fig = px.pie(service_data, values="Revenue", names="Service", hole=0.45,
-                     color_discrete_sequence=px.colors.sequential.Plasma)
-        fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", height=350)
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        st.markdown("### Weekly Revenue Trend")
-        dates = pd.date_range(end=datetime.now(), periods=7, freq='D')
-        trend = pd.DataFrame({
-            "Date": dates,
-            "Revenue": [22000, 24500, 21800, 26100, 25500, 23900, total_doc_revenue]
-        })
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=trend["Date"], y=trend["Revenue"],
-            fill='tozeroy', 
-            fillcolor='rgba(139, 92, 246, 0.3)',
-            line=dict(color='#8b5cf6', width=3),
-            mode='lines'
-        ))
-        fig.update_layout(
-            template="plotly_dark", 
-            paper_bgcolor="rgba(0,0,0,0)", 
-            plot_bgcolor="rgba(0,0,0,0)", 
-            height=350,
-            xaxis_title="Date",
-            yaxis_title="Revenue ($)"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-# ============================================================================
-# TAB 8: ANALYTICS
-# ============================================================================
-
-with tab8:
-    st.markdown('<div class="section-header">📊 Call Analytics</div>', unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("### Call Volume (Last 7 Days)")
-        dates = pd.date_range(end=datetime.now(), periods=7, freq='D')
-        call_data = pd.DataFrame({
-            "Date": dates,
-            "Total Calls": [42, 38, 45, 52, 48, 35, 40],
-            "Booked": [28, 25, 32, 38, 35, 24, 30]
-        })
-        fig = go.Figure()
-        fig.add_trace(go.Bar(x=call_data["Date"], y=call_data["Total Calls"], 
-                             name="Total Calls", marker_color='#8b5cf6'))
-        fig.add_trace(go.Bar(x=call_data["Date"], y=call_data["Booked"], 
-                             name="Booked", marker_color='#06b6d4'))
-        fig.update_layout(
-            template="plotly_dark", 
-            paper_bgcolor="rgba(0,0,0,0)", 
-            plot_bgcolor="rgba(0,0,0,0)", 
-            height=350, 
-            barmode='group',
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        st.markdown("### Call Intent Distribution")
-        intents = pd.DataFrame({
-            "Intent": ["New Booking", "Reschedule", "Inquiry", "Cancel", "Emergency"],
-            "Count": [180, 45, 60, 25, 15]
-        })
-        fig = px.pie(intents, values="Count", names="Intent", hole=0.45,
-                     color_discrete_sequence=["#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ef4444"])
-        fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", height=350)
-        st.plotly_chart(fig, use_container_width=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### Call Outcomes")
-    
-    col1, col2, col3, col4, col5 = st.columns(5)
-    with col1:
-        st.metric("✅ Booked", "212", "72%")
-    with col2:
-        st.metric("ℹ️ Info Only", "48", "16%")
-    with col3:
-        st.metric("🔄 Rescheduled", "25", "8%")
-    with col4:
-        st.metric("❌ Cancelled", "8", "3%")
-    with col5:
-        st.metric("🚨 Escalated", "4", "1%")
-
-# ============================================================================
-# TAB 9: ESCALATIONS
-# ============================================================================
-
-with tab9:
-    st.markdown('<div class="section-header">🚨 Escalations & Alerts</div>', unsafe_allow_html=True)
-    
-    # Try to fetch real escalations from calls with escalated outcome
-    try:
-        esc_resp = requests.get(f"{API_BASE}/calls?outcome=escalated", timeout=5)
-        real_escalations = esc_resp.json() if esc_resp.status_code == 200 else []
-    except:
-        real_escalations = []
-    
-    # Summary tiles
-    high_count = 1
-    medium_count = 1
-    low_count = 1
-    
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(f"""
-        <div style="background: rgba(239, 68, 68, 0.15); border: 2px solid #EF4444; border-radius: 12px; padding: 20px; text-align: center;">
-            <div style="font-size: 2.2rem; font-weight: 900; color: #EF4444;">{high_count}</div>
-            <div style="color: #E5E7EB; font-size: 0.9rem; margin-top: 4px;">🔴 High Priority</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"""
-        <div style="background: rgba(245, 158, 11, 0.15); border: 2px solid #F59E0B; border-radius: 12px; padding: 20px; text-align: center;">
-            <div style="font-size: 2.2rem; font-weight: 900; color: #F59E0B;">{medium_count}</div>
-            <div style="color: #E5E7EB; font-size: 0.9rem; margin-top: 4px;">🟡 Medium</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col3:
-        st.markdown(f"""
-        <div style="background: rgba(108, 99, 255, 0.15); border: 2px solid #6C63FF; border-radius: 12px; padding: 20px; text-align: center;">
-            <div style="font-size: 2.2rem; font-weight: 900; color: #6C63FF;">{low_count}</div>
-            <div style="color: #E5E7EB; font-size: 0.9rem; margin-top: 4px;">🔵 Low</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col4:
-        st.markdown(f"""
-        <div style="background: rgba(34, 197, 94, 0.15); border: 2px solid #22C55E; border-radius: 12px; padding: 20px; text-align: center;">
-            <div style="font-size: 2.2rem; font-weight: 900; color: #22C55E;">{len(real_escalations)}</div>
-            <div style="color: #E5E7EB; font-size: 0.9rem; margin-top: 4px;">📞 From Calls</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("""
-    <p style="color: #9CA3AF; margin-bottom: 20px;">
-    Cases requiring human attention - AI has flagged these for follow-up
-    </p>
-    """, unsafe_allow_html=True)
-    
-    # Demo escalations (would be replaced with real data when available)
-    escalations = [
-        {"id": 1, "patient": "Robert Taylor", "reason": "Billing question - needs payment plan discussion", "priority": "Medium", "time": "10 min ago", "phone": "+1 555-777-7777"},
-        {"id": 2, "patient": "Unknown Caller", "reason": "Complex insurance - needs manual verification", "priority": "Low", "time": "25 min ago", "phone": "+1 555-000-0000"},
-        {"id": 3, "patient": "Michael Brown", "reason": "EMERGENCY - Severe tooth pain, needs same-day appointment", "priority": "High", "time": "2 min ago", "phone": "+1 555-333-3333"},
-    ]
-    
-    for idx, esc in enumerate(escalations):
-        priority_colors = {"High": "#EF4444", "Medium": "#F59E0B", "Low": "#6C63FF"}
-        priority_bg = {"High": "rgba(239, 68, 68, 0.15)", "Medium": "rgba(245, 158, 11, 0.15)", "Low": "rgba(108, 99, 255, 0.15)"}
         
-        st.markdown(f"""
-        <div style="background: #121A2F; border-left: 4px solid {priority_colors[esc['priority']]}; border-radius: 0 12px 12px 0; padding: 20px; margin-bottom: 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                <div>
-                    <div style="font-size: 1.15rem; font-weight: 700; color: #E5E7EB;">{esc['patient']}</div>
-                    <div style="color: #9CA3AF; margin-top: 8px; font-size: 0.95rem;">{esc['reason']}</div>
-                    <div style="color: #6B7280; font-size: 0.85rem; margin-top: 12px;">
-                        📞 {esc['phone']} &nbsp;•&nbsp; 🕐 {esc['time']}
+    # ============================================================================
+    # TAB 4: CONVERSATIONS
+    # ============================================================================
+
+    with tab4:
+        st.markdown('<div class="section-header">💬 Conversation Summaries</div>', unsafe_allow_html=True)
+    
+        # Fetch call logs
+        try:
+            calls_resp = requests.get(f"{API_BASE}/calls", timeout=5)
+            calls_list = calls_resp.json() if calls_resp.status_code == 200 else []
+        except:
+            calls_list = []
+    
+        if calls_list:
+            # Summary tiles
+            booked_calls = len([c for c in calls_list if c.get("outcome") == "booked"])
+            escalated_calls = len([c for c in calls_list if c.get("outcome") == "escalated"])
+            avg_sentiment = sum((c.get("sentiment_score") or 0.5) for c in calls_list) / len(calls_list) if calls_list else 0.5
+            avg_duration = sum((c.get("duration") or 0) for c in calls_list) / len(calls_list) if calls_list else 0
+        
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.markdown(f"""
+                <div style="background: rgba(108, 99, 255, 0.15); border: 1px solid rgba(108, 99, 255, 0.4); border-radius: 12px; padding: 18px; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: 900; color: #6C63FF;">{len(calls_list)}</div>
+                    <div style="color: #E5E7EB; font-size: 0.85rem; margin-top: 4px;">Total Calls</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col2:
+                st.markdown(f"""
+                <div style="background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 12px; padding: 18px; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: 900; color: #22C55E;">{booked_calls}</div>
+                    <div style="color: #E5E7EB; font-size: 0.85rem; margin-top: 4px;">Booked</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col3:
+                st.markdown(f"""
+                <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 12px; padding: 18px; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: 900; color: #F59E0B;">{int(avg_sentiment * 100)}%</div>
+                    <div style="color: #E5E7EB; font-size: 0.85rem; margin-top: 4px;">Avg Sentiment</div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col4:
+                st.markdown(f"""
+                <div style="background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.4); border-radius: 12px; padding: 18px; text-align: center;">
+                    <div style="font-size: 2rem; font-weight: 900; color: #06B6D4;">{int(avg_duration)}s</div>
+                    <div style="color: #E5E7EB; font-size: 0.85rem; margin-top: 4px;">Avg Duration</div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+            st.markdown("<br>", unsafe_allow_html=True)
+        
+            # Filter options
+            col1, col2 = st.columns(2)
+            with col1:
+                outcome_filter = st.selectbox("Filter by Outcome", 
+                    ["All", "Booked", "Inquiry Answered", "Escalated", "Cancelled"])
+            with col2:
+                sort_by = st.selectbox("Sort by", ["Most Recent", "Longest Duration", "Highest Sentiment"])
+        
+            # Filter calls
+            filtered_calls = calls_list
+            if outcome_filter != "All":
+                filtered_calls = [c for c in calls_list if c.get("outcome", "").lower() == outcome_filter.lower().replace(" ", "_")]
+        
+            for call in filtered_calls[:15]:
+                patient = call.get("patient") or {}
+                outcome = call.get("outcome") or "unknown"
+                duration = call.get("duration") or 0
+                sentiment = call.get("sentiment_score") or 0.5
+            
+                # Outcome color
+                outcome_colors = {
+                    "booked": "#10b981",
+                    "inquiry_answered": "#06b6d4",
+                    "escalated": "#f59e0b",
+                    "cancelled": "#ef4444"
+                }
+                outcome_color = outcome_colors.get(outcome.lower(), "#6b7280")
+            
+                # Sentiment indicator
+                sentiment_emoji = "😊" if sentiment > 0.6 else "😐" if sentiment > 0.3 else "😟"
+            
+                with st.expander(f"{sentiment_emoji} {patient.get('name', 'Unknown Caller')} | {call.get('caller_phone', 'N/A')} | {outcome.upper()}", expanded=False):
+                    col1, col2, col3, col4 = st.columns(4)
+                
+                    with col1:
+                        st.metric("⏱️ Duration", f"{duration}s")
+                    with col2:
+                        st.metric("📊 Sentiment", f"{int(sentiment * 100)}%")
+                    with col3:
+                        st.metric("🎯 Outcome", outcome.replace("_", " ").title())
+                    with col4:
+                        intent = call.get("intent", "general")
+                        st.metric("💡 Intent", intent.replace("_", " ").title() if intent else "General")
+                
+                    st.markdown("---")
+                    st.markdown("**📝 Conversation Summary**")
+                    transcript = call.get("transcript", "")
+                    if transcript:
+                        # Show first 500 chars of transcript
+                        st.text_area("", transcript[:500] + ("..." if len(transcript) > 500 else ""), 
+                                    height=120, disabled=True, key=f"transcript_{call.get('id', '')}")
+                    else:
+                        st.write("No transcript available")
+                
+                    # Potential revenue
+                    if outcome == "booked":
+                        st.success("💰 **Revenue Impact:** Appointment booked - Est. $150-$200")
+                    elif outcome == "escalated":
+                        st.warning("⚠️ **Action Required:** Follow up with patient")
+        else:
+            st.info("No conversation logs yet. Make a test call to see summaries here!")
+        
+            # Demo conversation
+            st.markdown("### Sample Conversation Summary")
+            with st.expander("😊 Sarah Johnson | +1 (555) 987-6543 | BOOKED", expanded=True):
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("⏱️ Duration", "127s")
+                with col2:
+                    st.metric("📊 Sentiment", "85%")
+                with col3:
+                    st.metric("🎯 Outcome", "Booked")
+                with col4:
+                    st.metric("💡 Intent", "New Appointment")
+            
+                st.markdown("---")
+                st.markdown("**📝 Conversation Summary**")
+                st.text_area("", """Dentsi: Hello and welcome to SmileCare Dental! This is Dentsi, your AI assistant. How can I help you today?
+
+    Patient: Hi, I'd like to schedule a teeth cleaning.
+
+    Dentsi: Wonderful! I'd be happy to help you with that. Let me check our availability. Do you have a preferred day?
+
+    Patient: Maybe next Tuesday?
+
+    Dentsi: I have Tuesday, January 28th at 10am or 2pm available. Which works better for you?
+
+    Patient: 2pm sounds good.
+
+    Dentsi: Perfect! Before I confirm, do you have dental insurance?
+
+    Patient: Yes, Delta Dental.
+
+    Dentsi: Great! And your member ID?
+
+    Patient: DD789456123
+
+    Dentsi: Got it! You're all set for a cleaning on Tuesday, January 28th at 2pm. You'll receive a text confirmation. We're looking forward to seeing you!""", 
+                            height=200, disabled=True)
+                st.success("💰 **Revenue Impact:** Cleaning booked - Est. $120")
+
+    # ============================================================================
+    # TAB 5: TEXT & SMS (mock — Batch 1)
+    # ============================================================================
+
+    with tab5:
+        st.markdown('<div class="section-header">📱 Text & SMS (mock)</div>', unsafe_allow_html=True)
+        st.caption("Inbound/outbound SMS handled by Dentsi — mock threads for UI preview. Batch 2: connect Twilio Messaging + backend inbox.")
+
+        for thread in MOCK_TEXT_THREADS:
+            with st.expander(f"**{thread['patient']}** · {thread['phone']} · _{thread['last_at']}_", expanded=False):
+                for msg in thread["messages"]:
+                    is_out = msg["dir"] == "out"
+                    align = "flex-end" if is_out else "flex-start"
+                    bg = "linear-gradient(135deg, rgba(108,99,255,0.35), rgba(108,99,255,0.12))" if is_out else "linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.06))"
+                    border = "rgba(108,99,255,0.45)" if is_out else "rgba(34,197,94,0.35)"
+                    who = "Dentsi" if is_out else thread["patient"].split()[0]
+                    body_esc = html.escape(msg["body"])
+                    at_esc = html.escape(msg["at"])
+                    who_esc = html.escape(who)
+                    st.markdown(f"""
+                    <div style="display:flex; justify-content:{align}; margin-bottom:10px;">
+                        <div style="max-width:78%; background:{bg}; border:1px solid {border}; border-radius:14px; padding:12px 16px;">
+                            <div style="font-size:0.72rem; color:#94a3b8; margin-bottom:4px;">{who_esc} · {at_esc}</div>
+                            <div style="color:#e2e8f0; font-size:0.95rem; line-height:1.45;">{body_esc}</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+    # ============================================================================
+    # TAB 6: DOCTORS
+    # ============================================================================
+
+    with tab6:
+        st.markdown('<div class="section-header">👨‍⚕️ Doctors & Availability</div>', unsafe_allow_html=True)
+    
+        # Doctor tiles in rows of 3
+        for row_start in range(0, len(DOCTORS), 3):
+            cols = st.columns(3, gap="medium")
+            for i, col in enumerate(cols):
+                doc_idx = row_start + i
+                if doc_idx < len(DOCTORS):
+                    doc = DOCTORS[doc_idx]
+                    status_color = "#22C55E" if doc["available"] else "#EF4444"
+                    status_text = "Available" if doc["available"] else "Busy"
+                    status_bg = "rgba(34, 197, 94, 0.15)" if doc["available"] else "rgba(239, 68, 68, 0.15)"
+                
+                    with col:
+                        st.markdown(f"""
+    <div style="background: linear-gradient(145deg, #121A2F, #0B1220); border: 1px solid rgba(108, 99, 255, 0.3); border-radius: 16px; padding: 20px; margin-bottom: 16px;">
+    <div style="font-size: 1.15rem; font-weight: 700; color: #E5E7EB; margin-bottom: 6px;">👨‍⚕️ {doc['name']}</div>
+    <div style="font-size: 0.9rem; color: #6C63FF; margin-bottom: 4px;">{doc['specialty']}</div>
+    <div style="font-size: 0.85rem; color: #9CA3AF; margin-bottom: 12px;">📍 {doc['clinic']}</div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+    <span style="background: {status_bg}; color: {status_color}; padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">{status_text}</span>
+    <span style="color: #FACC15; font-size: 1.2rem; font-weight: 800;">${doc['revenue']:,}</span>
+    </div>
+    <div style="font-size: 0.8rem; color: #6B7280;">{doc['appointments']} appointments today</div>
+    </div>
+                        """, unsafe_allow_html=True)
+    
+        st.markdown("<br>", unsafe_allow_html=True)
+    
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown('<div class="section-header">📊 Performance by Doctor</div>', unsafe_allow_html=True)
+    
+        doc_df = pd.DataFrame(DOCTORS)
+    
+        col1, col2 = st.columns(2)
+        with col1:
+            fig = px.bar(doc_df, x="name", y="appointments", 
+                         title="Appointments Today",
+                         color="appointments",
+                         color_continuous_scale=["#8b5cf6", "#06b6d4"])
+            fig.update_layout(
+                template="plotly_dark", 
+                paper_bgcolor="rgba(0,0,0,0)", 
+                plot_bgcolor="rgba(0,0,0,0)", 
+                height=350,
+                showlegend=False,
+                xaxis_title="",
+                yaxis_title="Appointments"
+            )
+            fig.update_xaxes(tickangle=45)
+            st.plotly_chart(fig, use_container_width=True)
+    
+        with col2:
+            fig = px.bar(doc_df, x="name", y="revenue", 
+                         title="Revenue Today",
+                         color="revenue",
+                         color_continuous_scale=["#10b981", "#06b6d4"])
+            fig.update_layout(
+                template="plotly_dark", 
+                paper_bgcolor="rgba(0,0,0,0)", 
+                plot_bgcolor="rgba(0,0,0,0)", 
+                height=350,
+                showlegend=False,
+                xaxis_title="",
+                yaxis_title="Revenue ($)"
+            )
+            fig.update_xaxes(tickangle=45)
+            st.plotly_chart(fig, use_container_width=True)
+
+    # ============================================================================
+    # TAB 7: REVENUE
+    # ============================================================================
+
+    with tab7:
+        st.markdown('<div class="section-header">💰 Revenue Analytics</div>', unsafe_allow_html=True)
+    
+        total_doc_revenue = sum(d["revenue"] for d in DOCTORS)
+        num_chairs = 5
+        revenue_per_chair = total_doc_revenue // num_chairs
+        total_patients = sum(d["appointments"] for d in DOCTORS)
+        avg_per_patient = total_doc_revenue // total_patients if total_patients else 0
+    
+        col1, col2, col3 = st.columns(3)
+    
+        with col1:
+            st.markdown(f"""
+            <div class="revenue-box">
+                <div style="font-size: 1rem; opacity: 0.9;">Total Revenue Today</div>
+                <div style="font-size: 2.8rem; font-weight: 800; margin: 10px 0;">${total_doc_revenue:,}</div>
+                <div style="font-size: 0.9rem;">↑ 12% vs yesterday</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+        with col2:
+            st.markdown(f"""
+            <div class="revenue-box-purple">
+                <div style="font-size: 1rem; opacity: 0.9;">Revenue Per Chair</div>
+                <div style="font-size: 2.8rem; font-weight: 800; margin: 10px 0;">${revenue_per_chair:,}</div>
+                <div style="font-size: 0.9rem;">{num_chairs} chairs active</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+        with col3:
+            st.markdown(f"""
+            <div class="revenue-box-cyan">
+                <div style="font-size: 1rem; opacity: 0.9;">Avg Per Patient</div>
+                <div style="font-size: 2.8rem; font-weight: 800; margin: 10px 0;">${avg_per_patient}</div>
+                <div style="font-size: 0.9rem;">{total_patients} patients today</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+        st.markdown("<br>", unsafe_allow_html=True)
+    
+        col1, col2 = st.columns(2)
+    
+        with col1:
+            st.markdown("### Revenue by Service")
+            service_data = pd.DataFrame({
+                "Service": ["Cleaning", "Root Canal", "Crown", "Filling", "Whitening", "Implant"],
+                "Revenue": [3600, 6000, 4800, 2500, 1600, 7000],
+                "Count": [30, 4, 4, 10, 4, 2]
+            })
+            fig = px.pie(service_data, values="Revenue", names="Service", hole=0.45,
+                         color_discrete_sequence=px.colors.sequential.Plasma)
+            fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", height=350)
+            st.plotly_chart(fig, use_container_width=True)
+    
+        with col2:
+            st.markdown("### Weekly Revenue Trend")
+            dates = pd.date_range(end=datetime.now(), periods=7, freq='D')
+            trend = pd.DataFrame({
+                "Date": dates,
+                "Revenue": [22000, 24500, 21800, 26100, 25500, 23900, total_doc_revenue]
+            })
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=trend["Date"], y=trend["Revenue"],
+                fill='tozeroy', 
+                fillcolor='rgba(139, 92, 246, 0.3)',
+                line=dict(color='#8b5cf6', width=3),
+                mode='lines'
+            ))
+            fig.update_layout(
+                template="plotly_dark", 
+                paper_bgcolor="rgba(0,0,0,0)", 
+                plot_bgcolor="rgba(0,0,0,0)", 
+                height=350,
+                xaxis_title="Date",
+                yaxis_title="Revenue ($)"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+    # ============================================================================
+    # TAB 8: ANALYTICS
+    # ============================================================================
+
+    with tab8:
+        st.markdown('<div class="section-header">📊 Call Analytics</div>', unsafe_allow_html=True)
+    
+        col1, col2 = st.columns(2)
+    
+        with col1:
+            st.markdown("### Call Volume (Last 7 Days)")
+            dates = pd.date_range(end=datetime.now(), periods=7, freq='D')
+            call_data = pd.DataFrame({
+                "Date": dates,
+                "Total Calls": [42, 38, 45, 52, 48, 35, 40],
+                "Booked": [28, 25, 32, 38, 35, 24, 30]
+            })
+            fig = go.Figure()
+            fig.add_trace(go.Bar(x=call_data["Date"], y=call_data["Total Calls"], 
+                                 name="Total Calls", marker_color='#8b5cf6'))
+            fig.add_trace(go.Bar(x=call_data["Date"], y=call_data["Booked"], 
+                                 name="Booked", marker_color='#06b6d4'))
+            fig.update_layout(
+                template="plotly_dark", 
+                paper_bgcolor="rgba(0,0,0,0)", 
+                plot_bgcolor="rgba(0,0,0,0)", 
+                height=350, 
+                barmode='group',
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+    
+        with col2:
+            st.markdown("### Call Intent Distribution")
+            intents = pd.DataFrame({
+                "Intent": ["New Booking", "Reschedule", "Inquiry", "Cancel", "Emergency"],
+                "Count": [180, 45, 60, 25, 15]
+            })
+            fig = px.pie(intents, values="Count", names="Intent", hole=0.45,
+                         color_discrete_sequence=["#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#ef4444"])
+            fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", height=350)
+            st.plotly_chart(fig, use_container_width=True)
+    
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("### Call Outcomes")
+    
+        col1, col2, col3, col4, col5 = st.columns(5)
+        with col1:
+            st.metric("✅ Booked", "212", "72%")
+        with col2:
+            st.metric("ℹ️ Info Only", "48", "16%")
+        with col3:
+            st.metric("🔄 Rescheduled", "25", "8%")
+        with col4:
+            st.metric("❌ Cancelled", "8", "3%")
+        with col5:
+            st.metric("🚨 Escalated", "4", "1%")
+
+    # ============================================================================
+    # TAB 9: ESCALATIONS
+    # ============================================================================
+
+    with tab9:
+        st.markdown('<div class="section-header">🚨 Escalations & Alerts</div>', unsafe_allow_html=True)
+    
+        # Try to fetch real escalations from calls with escalated outcome
+        try:
+            esc_resp = requests.get(f"{API_BASE}/calls?outcome=escalated", timeout=5)
+            real_escalations = esc_resp.json() if esc_resp.status_code == 200 else []
+        except:
+            real_escalations = []
+    
+        # Summary tiles
+        high_count = 1
+        medium_count = 1
+        low_count = 1
+    
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.markdown(f"""
+            <div style="background: rgba(239, 68, 68, 0.15); border: 2px solid #EF4444; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="font-size: 2.2rem; font-weight: 900; color: #EF4444;">{high_count}</div>
+                <div style="color: #E5E7EB; font-size: 0.9rem; margin-top: 4px;">🔴 High Priority</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"""
+            <div style="background: rgba(245, 158, 11, 0.15); border: 2px solid #F59E0B; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="font-size: 2.2rem; font-weight: 900; color: #F59E0B;">{medium_count}</div>
+                <div style="color: #E5E7EB; font-size: 0.9rem; margin-top: 4px;">🟡 Medium</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col3:
+            st.markdown(f"""
+            <div style="background: rgba(108, 99, 255, 0.15); border: 2px solid #6C63FF; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="font-size: 2.2rem; font-weight: 900; color: #6C63FF;">{low_count}</div>
+                <div style="color: #E5E7EB; font-size: 0.9rem; margin-top: 4px;">🔵 Low</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col4:
+            st.markdown(f"""
+            <div style="background: rgba(34, 197, 94, 0.15); border: 2px solid #22C55E; border-radius: 12px; padding: 20px; text-align: center;">
+                <div style="font-size: 2.2rem; font-weight: 900; color: #22C55E;">{len(real_escalations)}</div>
+                <div style="color: #E5E7EB; font-size: 0.9rem; margin-top: 4px;">📞 From Calls</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("""
+        <p style="color: #9CA3AF; margin-bottom: 20px;">
+        Cases requiring human attention - AI has flagged these for follow-up
+        </p>
+        """, unsafe_allow_html=True)
+    
+        # Demo escalations (would be replaced with real data when available)
+        escalations = [
+            {"id": 1, "patient": "Robert Taylor", "reason": "Billing question - needs payment plan discussion", "priority": "Medium", "time": "10 min ago", "phone": "+1 555-777-7777"},
+            {"id": 2, "patient": "Unknown Caller", "reason": "Complex insurance - needs manual verification", "priority": "Low", "time": "25 min ago", "phone": "+1 555-000-0000"},
+            {"id": 3, "patient": "Michael Brown", "reason": "EMERGENCY - Severe tooth pain, needs same-day appointment", "priority": "High", "time": "2 min ago", "phone": "+1 555-333-3333"},
+        ]
+    
+        for idx, esc in enumerate(escalations):
+            priority_colors = {"High": "#EF4444", "Medium": "#F59E0B", "Low": "#6C63FF"}
+            priority_bg = {"High": "rgba(239, 68, 68, 0.15)", "Medium": "rgba(245, 158, 11, 0.15)", "Low": "rgba(108, 99, 255, 0.15)"}
+        
+            st.markdown(f"""
+            <div style="background: #121A2F; border-left: 4px solid {priority_colors[esc['priority']]}; border-radius: 0 12px 12px 0; padding: 20px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <div style="font-size: 1.15rem; font-weight: 700; color: #E5E7EB;">{esc['patient']}</div>
+                        <div style="color: #9CA3AF; margin-top: 8px; font-size: 0.95rem;">{esc['reason']}</div>
+                        <div style="color: #6B7280; font-size: 0.85rem; margin-top: 12px;">
+                            📞 {esc['phone']} &nbsp;•&nbsp; 🕐 {esc['time']}
+                        </div>
+                    </div>
+                    <div style="background: {priority_bg[esc['priority']]}; color: {priority_colors[esc['priority']]}; padding: 6px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;">
+                        {esc['priority']}
                     </div>
                 </div>
-                <div style="background: {priority_bg[esc['priority']]}; color: {priority_colors[esc['priority']]}; padding: 6px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;">
-                    {esc['priority']}
-                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
         
-        if idx < len(escalations) - 1:
-            st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+            if idx < len(escalations) - 1:
+                st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
-# ============================================================================
+with _dash_right:
+    _render_right_transcript_pane()
+
 # FOOTER
 # ============================================================================
 
