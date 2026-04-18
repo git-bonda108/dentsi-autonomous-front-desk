@@ -99,6 +99,8 @@ if 'conversation_history' not in st.session_state:
     st.session_state.conversation_history = []
 if 'live_transcript_lines' not in st.session_state:
     st.session_state.live_transcript_lines = [dict(row) for row in MOCK_LIVE_TRANSCRIPT]
+if 'right_pane_weight' not in st.session_state:
+    st.session_state.right_pane_weight = 26
 if 'selected_clinic_id' not in st.session_state:
     st.session_state.selected_clinic_id = None
 if 'selected_clinic_name' not in st.session_state:
@@ -696,6 +698,14 @@ st.markdown("""
         background: linear-gradient(90deg, #a78bfa, #6C63FF, #22d3ee);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
+    .live-transcript-subline {
+        font-size: 0.82rem;
+        margin-top: 5px;
+        background: linear-gradient(90deg, #94a3b8, #a5b4fc, #5eead4);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        opacity: 0.95;
+    }
     .live-transcript-scroll {
         max-height: 280px; overflow-y: auto; padding-right: 6px;
         font-family: ui-sans-serif, system-ui, sans-serif;
@@ -710,9 +720,30 @@ st.markdown("""
     .tx-badge-system { background: rgba(6, 182, 212, 0.18); color: #67e8f9; border: 1px solid rgba(6,182,212,0.35); }
     .tx-bubble {
         flex: 1; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(148, 163, 184, 0.12);
-        border-radius: 12px; padding: 10px 14px; color: #e2e8f0; font-size: 0.95rem; line-height: 1.45;
+        border-radius: 12px; padding: 10px 14px; font-size: 0.95rem; line-height: 1.45;
     }
-    .tx-time { font-size: 0.72rem; color: #64748b; margin-top: 4px; }
+    .tx-bubble--agent {
+        color: #f3e8ff !important;
+        border-color: rgba(167, 139, 250, 0.55) !important;
+        background: linear-gradient(145deg, rgba(88, 28, 135, 0.42), rgba(15, 23, 42, 0.92)) !important;
+        box-shadow: 0 0 18px rgba(139, 92, 246, 0.15);
+    }
+    .tx-bubble--caller {
+        color: #dcfce7 !important;
+        border-color: rgba(34, 197, 94, 0.55) !important;
+        background: linear-gradient(145deg, rgba(6, 78, 59, 0.5), rgba(15, 23, 42, 0.92)) !important;
+        box-shadow: 0 0 18px rgba(34, 197, 94, 0.12);
+    }
+    .tx-bubble--system {
+        color: #cffafe !important;
+        border-color: rgba(34, 211, 238, 0.5) !important;
+        background: linear-gradient(145deg, rgba(14, 116, 144, 0.45), rgba(15, 23, 42, 0.92)) !important;
+        box-shadow: 0 0 18px rgba(34, 211, 238, 0.12);
+    }
+    .tx-bubble--agent .tx-time { color: #d8b4fe; }
+    .tx-bubble--caller .tx-time { color: #6ee7b7; }
+    .tx-bubble--system .tx-time { color: #67e8f9; }
+    .tx-time { font-size: 0.72rem; margin-top: 4px; }
     
     /* Right pane: live transcript rail */
     .rt-pane-outer {
@@ -723,16 +754,42 @@ st.markdown("""
         margin-bottom: 12px;
         box-shadow: 0 10px 36px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.05);
     }
-    .rt-pane-title-row {
-        display: flex; align-items: center; gap: 12px; margin-bottom: 6px;
+    @keyframes notes-pill-glow {
+        0%, 100% { box-shadow: 0 0 14px rgba(34, 197, 94, 0.4), 0 0 0 1px rgba(34, 197, 94, 0.85) inset; }
+        50% { box-shadow: 0 0 26px rgba(34, 197, 94, 0.65), 0 0 0 1px rgba(74, 222, 128, 0.9) inset; }
     }
-    .rt-pane-icon { font-size: 1.75rem; line-height: 1; filter: drop-shadow(0 2px 6px rgba(108,99,255,0.45)); }
-    .rt-pane-title {
-        font-size: 1.12rem; font-weight: 800; letter-spacing: 0.06em;
-        background: linear-gradient(90deg, #c4b5fd, #6C63FF, #22d3ee);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    .notes-progress-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 22px 11px 18px;
+        border-radius: 999px;
+        border: 1px solid #22c55e;
+        background: rgba(11, 18, 32, 0.92);
+        animation: notes-pill-glow 2.5s ease-in-out infinite;
     }
-    .rt-pane-sub { font-size: 0.78rem; color: #94a3b8; margin-top: 2px; }
+    .notes-progress-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #22c55e;
+        box-shadow: 0 0 10px #4ade80, 0 0 16px rgba(34, 197, 94, 0.8);
+        flex-shrink: 0;
+    }
+    .notes-progress-label {
+        color: #4ade80;
+        font-weight: 800;
+        font-size: 1.02rem;
+        letter-spacing: 0.04em;
+        text-shadow: 0 0 12px rgba(74, 222, 128, 0.35);
+    }
+    .notes-progress-hint {
+        color: #86efac;
+        font-size: 0.8rem;
+        margin: 10px 0 0 2px;
+        opacity: 0.92;
+        line-height: 1.45;
+    }
     .live-transcript-shell--pane {
         margin-bottom: 0 !important;
         margin-top: 8px;
@@ -871,12 +928,18 @@ def _transcript_badge_class(role: str) -> Tuple[str, str]:
 def _build_transcript_html(lines: list) -> str:
     parts = []
     for row in lines:
-        bcls, blabel = _transcript_badge_class(row.get("role", "agent"))
+        role = row.get("role", "agent") or "agent"
+        bcls, blabel = _transcript_badge_class(role)
+        bubble_cls = "tx-bubble tx-bubble--agent"
+        if role == "caller":
+            bubble_cls = "tx-bubble tx-bubble--caller"
+        elif role == "system":
+            bubble_cls = "tx-bubble tx-bubble--system"
         ts = row.get("ts", "")
         text = row.get("text", "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         parts.append(
             f'<div class="tx-line"><span class="tx-badge {bcls}">{blabel}</span>'
-            f'<div class="tx-bubble">{text}<div class="tx-time">{ts}</div></div></div>'
+            f'<div class="{bubble_cls}">{text}<div class="tx-time">{ts}</div></div></div>'
         )
     return "".join(parts)
 
@@ -905,7 +968,7 @@ def _live_transcript_fragment():
     <div class="live-transcript-head">
         <div>
             <div class="live-transcript-title">LIVE CALL TRANSCRIPT</div>
-            <div style="color:#94a3b8;font-size:0.82rem;margin-top:4px;">{sub_esc}</div>
+            <div class="live-transcript-subline">{sub_esc}</div>
         </div>
         <div class="live-indicator"><span class="live-dot"></span> {badge}</div>
     </div>
@@ -920,13 +983,11 @@ def _render_right_transcript_pane():
     """Dedicated right column: live transcript controls + stream."""
     st.markdown("""
     <div class="rt-pane-outer">
-        <div class="rt-pane-title-row">
-            <span class="rt-pane-icon">📝</span>
-            <div>
-                <div class="rt-pane-title">Live transcript</div>
-                <div class="rt-pane-sub">Note-taker · Dentsi and caller</div>
-            </div>
+        <div class="notes-progress-pill">
+            <span class="notes-progress-dot"></span>
+            <span class="notes-progress-label">Notes in progress</span>
         </div>
+        <p class="notes-progress-hint">Live lines from Dentsi and the caller stream here.</p>
     </div>
     """, unsafe_allow_html=True)
     st.checkbox(
@@ -1169,7 +1230,24 @@ for col, (icon, value, label) in zip([col1, col2, col3, col4, col5, col6], metri
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-_dash_left, _dash_right = st.columns([2.82, 1.08], gap="large")
+_s1, _s2, _s3 = st.columns([2.2, 1.4, 1.2])
+with _s1:
+    st.caption("Adjust how much space the notes panel uses — rest goes to tabs.")
+with _s2:
+    st.slider(
+        "Notes panel width",
+        min_value=14,
+        max_value=40,
+        value=int(st.session_state.right_pane_weight),
+        step=1,
+        key="right_pane_weight",
+        help="Smaller value = wider main tabs. Larger = wider transcript column.",
+    )
+with _s3:
+    st.metric("Notes column", f"{int(st.session_state.right_pane_weight)}%")
+
+_rl = max(38, 100 - int(st.session_state.right_pane_weight))
+_dash_left, _dash_right = st.columns([_rl, int(st.session_state.right_pane_weight)], gap="medium")
 
 with _dash_left:
     # ============================================================================
