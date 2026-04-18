@@ -1003,8 +1003,20 @@ for col, (icon, value, label) in zip([col1, col2, col3, col4, col5, col6], metri
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ============================================================================
-# LIVE CALL TRANSCRIPT (mock — Batch 1; real-time via API/ws in Batch 2)
+# LIVE CALL TRANSCRIPT (Batch 1 mock + Batch 2 API poll)
 # ============================================================================
+
+def _fetch_transcript_from_api():
+    """GET /transcript/live — returns list of {role, text, ts, source?} or []."""
+    try:
+        r = requests.get(f"{API_BASE}/transcript/live", timeout=3)
+        if r.status_code == 200:
+            data = r.json()
+            return data.get("lines") or [], data.get("updated_at")
+    except Exception:
+        pass
+    return [], None
+
 
 def _transcript_badge_class(role: str) -> Tuple[str, str]:
     if role == "caller":
@@ -1027,15 +1039,19 @@ def _build_transcript_html(lines: list) -> str:
     return "".join(parts)
 
 
-ctrl_a, ctrl_b, ctrl_c = st.columns([3, 1, 1])
+ctrl_a, ctrl_b, ctrl_c, ctrl_d = st.columns([2, 1, 1, 1])
 with ctrl_a:
-    st.caption("Batch 2: ElevenLabs transcript webhook → append lines here in real time.")
+    st.checkbox(
+        "Poll live transcript from API",
+        key="tx_poll_api",
+        help="GET /transcript/live every few seconds (requires Abacus deploy with Batch 2).",
+    )
 with ctrl_b:
-    if st.button("Reset demo", key="live_tx_reset", help="Restore mock transcript"):
+    if st.button("Reset demo", key="live_tx_reset", help="Restore local mock transcript"):
         st.session_state.live_transcript_lines = [dict(r) for r in MOCK_LIVE_TRANSCRIPT]
         st.rerun()
 with ctrl_c:
-    if st.button("Simulate log", key="live_tx_sim", help="Append API + closing line"):
+    if st.button("Simulate log", key="live_tx_sim", help="Append API + closing line (local)"):
         st.session_state.live_transcript_lines.append({
             "role": "agent",
             "ts": "live",
@@ -1052,24 +1068,62 @@ with ctrl_c:
             "text": "You're good to go — thanks for calling SmileCare Dental!",
         })
         st.rerun()
+with ctrl_d:
+    if st.button("POST test line", key="live_tx_post", help="Append one line via POST /transcript/line"):
+        try:
+            pr = requests.post(
+                f"{API_BASE}/transcript/line",
+                json={
+                    "role": "agent",
+                    "text": "Streamlit test: live transcript line from dashboard.",
+                    "source": "streamlit",
+                },
+                timeout=5,
+            )
+            if pr.status_code == 200:
+                st.toast("Posted to API", icon="✅")
+            else:
+                st.toast(f"API {pr.status_code}", icon="⚠️")
+        except Exception as ex:
+            st.toast(f"Failed: {ex}", icon="❌")
 
-lines_html = _build_transcript_html(st.session_state.live_transcript_lines)
-st.markdown(f"""
+
+@st.fragment(run_every=timedelta(seconds=3))
+def _live_transcript_fragment():
+    poll = st.session_state.get("tx_poll_api", False)
+    api_lines, updated_at = _fetch_transcript_from_api()
+    if poll and len(api_lines) > 0:
+        display_lines = api_lines
+        badge = "Live API"
+        sub = f"Streaming from backend · updated {updated_at or ''}"
+    elif poll:
+        display_lines = st.session_state.live_transcript_lines
+        badge = "API (empty) + demo fallback"
+        sub = "Backend returned no lines yet — showing local mock. Use POST test line or ElevenLabs webhook."
+    else:
+        display_lines = st.session_state.live_transcript_lines
+        badge = "Local demo"
+        sub = "Enable “Poll live transcript” to merge in /transcript/live (after deploy)."
+
+    sub_esc = html.escape(sub)
+    lines_html = _build_transcript_html(display_lines)
+    st.markdown(f"""
 <div class="live-transcript-shell">
     <div class="live-transcript-head">
         <div>
             <div class="live-transcript-title">LIVE CALL TRANSCRIPT</div>
-            <div style="color:#94a3b8;font-size:0.82rem;margin-top:4px;">
-                Note-taker view · everything spoken (mock data for now — wire to ElevenLabs in Batch 2)
-            </div>
+            <div style="color:#94a3b8;font-size:0.82rem;margin-top:4px;">{sub_esc}</div>
         </div>
-        <div class="live-indicator"><span class="live-dot"></span> Demo stream</div>
+        <div class="live-indicator"><span class="live-dot"></span> {badge}</div>
     </div>
     <div class="live-transcript-scroll">
         {lines_html}
     </div>
 </div>
 """, unsafe_allow_html=True)
+
+
+_live_transcript_fragment()
 
 # ============================================================================
 # TABS

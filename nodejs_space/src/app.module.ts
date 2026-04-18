@@ -17,6 +17,7 @@ import { HealthModule } from './health/health.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ElevenLabsToolsModule } from './elevenlabs/elevenlabs-tools.module';
 import { AdminModule } from './admin/admin.module';
+import { TranscriptModule } from './transcript/transcript.module';
 
 /**
  * DENTSI - AI Voice Agent for Dental Appointment Automation
@@ -64,6 +65,9 @@ import { AdminModule } from './admin/admin.module';
     
     // Admin
     AdminModule,
+
+    // Live transcript bus (dashboard / webhooks)
+    TranscriptModule,
   ],
 })
 export class AppModule {}

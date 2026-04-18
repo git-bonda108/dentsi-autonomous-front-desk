@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Logger, HttpCode } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { demoConfig } from '../config/demo-config';
+import { liveTranscriptStore } from '../transcript/live-transcript.store';
 
 /**
  * ElevenLabs Tools Controller
@@ -534,6 +535,12 @@ export class ElevenLabsToolsController {
           sentiment_score: body.sentiment === 'positive' ? 0.8 : body.sentiment === 'negative' ? 0.3 : 0.5,
           metadata: metadata,
         },
+      });
+
+      liveTranscriptStore.append({
+        role: 'system',
+        text: `✓ Call saved to records · outcome: ${body.outcome} · appointment_booked: ${body.appointment_booked}`,
+        source: 'log_conversation',
       });
 
       return {
