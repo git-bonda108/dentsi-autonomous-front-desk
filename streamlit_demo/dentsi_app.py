@@ -13,6 +13,7 @@ Run: streamlit run dentsi_app.py
 """
 
 import html
+import os
 import streamlit as st
 import requests
 import pandas as pd
@@ -29,6 +30,9 @@ import time
 API_BASE = "https://dentcognit.abacusai.app"
 TWILIO_NUMBER = "+1 (920) 891-4513"
 TWILIO_NUMBER_RAW = "+19208914513"
+
+# Bump when shipping visible UI changes (sidebar shows this so you can confirm deploy).
+UI_BUILD = "2026-04-19-4"
 
 # Mock live call transcript (Batch 1 — replace with API / websocket in Batch 2)
 MOCK_LIVE_TRANSCRIPT = [
@@ -83,7 +87,7 @@ MOCK_TEXT_THREADS = [
 ]
 
 st.set_page_config(
-    page_title="AMPLIT AI - Where Every Call Leads to a Smile",
+    page_title=f"AMPLIT AI — Desk {UI_BUILD}",
     page_icon="✨",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -706,40 +710,71 @@ st.markdown("""
         -webkit-text-fill-color: transparent;
         opacity: 0.95;
     }
-    .live-transcript-scroll {
-        max-height: min(58vh, 560px);
-        min-height: 220px;
+    /* Transcript: fixed-height scroll body (stops page “free fall”) */
+    .tx-pane-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid rgba(108, 99, 255, 0.22);
+    }
+    .tx-pane-title {
+        font-size: 1.05rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        background: linear-gradient(90deg, #a78bfa, #6C63FF, #22d3ee);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .tx-pane-sub {
+        font-size: 0.82rem;
+        margin-top: 5px;
+        background: linear-gradient(90deg, #94a3b8, #a5b4fc, #5eead4);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        opacity: 0.95;
+    }
+    .tx-live-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(34, 197, 94, 0.15);
+        border: 1px solid rgba(34, 197, 94, 0.4);
+        border-radius: 16px;
+        padding: 5px 12px;
+        font-size: 0.8rem;
+        color: #22C55E;
+        font-weight: 600;
+    }
+    .tx-scroll-container {
+        max-height: 520px;
+        min-height: 160px;
         overflow-y: auto;
         overflow-x: hidden;
-        padding: 14px 8px 16px 14px;
-        margin-top: 10px;
-        border-radius: 16px;
-        background: radial-gradient(120% 80% at 10% 0%, rgba(76, 29, 149, 0.18), transparent 55%),
-                      radial-gradient(100% 60% at 100% 100%, rgba(6, 95, 70, 0.16), transparent 45%),
-                      rgba(2, 6, 23, 0.72);
-        border: 1px solid rgba(99, 102, 241, 0.28);
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+        padding: 12px 6px 12px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        background: rgba(15, 15, 30, 0.55);
         font-family: ui-sans-serif, system-ui, sans-serif;
         scrollbar-gutter: stable;
         scrollbar-width: thin;
-        scrollbar-color: #4ade80 rgba(15, 23, 42, 0.85);
+        scrollbar-color: rgba(108, 99, 255, 0.55) transparent;
     }
-    .live-transcript-scroll::-webkit-scrollbar {
-        width: 10px;
+    .tx-scroll-container::-webkit-scrollbar {
+        width: 6px;
     }
-    .live-transcript-scroll::-webkit-scrollbar-track {
-        background: rgba(15, 23, 42, 0.92);
-        border-radius: 10px;
-        margin: 6px 2px;
+    .tx-scroll-container::-webkit-scrollbar-track {
+        background: transparent;
     }
-    .live-transcript-scroll::-webkit-scrollbar-thumb {
-        background: linear-gradient(180deg, #4ade80, #22c55e 40%, #6C63FF);
-        border-radius: 10px;
-        border: 2px solid rgba(15, 23, 42, 0.98);
-        box-shadow: 0 0 10px rgba(34, 197, 94, 0.35);
+    .tx-scroll-container::-webkit-scrollbar-thumb {
+        background: rgba(108, 99, 255, 0.5);
+        border-radius: 3px;
     }
-    .live-transcript-scroll::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(180deg, #86efac, #4ade80 45%, #8b5cf6);
+    .tx-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: rgba(108, 99, 255, 0.85);
     }
     .tx-line { margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; }
     .tx-badge {
@@ -830,9 +865,9 @@ st.markdown("""
         border: none !important;
         box-shadow: none !important;
         padding: 0 !important;
-    }
-    .live-transcript-shell--pane .live-transcript-head {
-        border-bottom-color: rgba(129, 140, 248, 0.25);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -1001,14 +1036,14 @@ def _live_transcript_fragment():
     lines_html = _build_transcript_html(display_lines)
     st.markdown(f"""
 <div class="live-transcript-shell live-transcript-shell--pane">
-    <div class="live-transcript-head">
+    <div class="tx-pane-header">
         <div>
-            <div class="live-transcript-title">Conversation</div>
-            <div class="live-transcript-subline">{sub_esc}</div>
+            <div class="tx-pane-title">Conversation</div>
+            <div class="tx-pane-sub">{sub_esc}</div>
         </div>
-        <div class="live-indicator"><span class="live-dot"></span> {badge_esc}</div>
+        <span class="tx-live-badge"><span class="live-dot"></span> {badge_esc}</span>
     </div>
-    <div class="live-transcript-scroll">
+    <div class="tx-scroll-container">
         {lines_html}
     </div>
 </div>
@@ -1164,7 +1199,16 @@ with st.sidebar:
         3. Appointments booked automatically
     </div>
     """, unsafe_allow_html=True)
-    
+
+    _sha = (os.environ.get("STREAMLIT_CLOUD_GIT_SHA") or os.environ.get("GITHUB_SHA") or "")[:7]
+    _label = f"{UI_BUILD} · {_sha}" if _sha else UI_BUILD
+    st.markdown(
+        f'<div style="text-align:center;margin-top:18px;padding-top:14px;'
+        f'border-top:1px solid rgba(99,102,241,0.25);color:#64748b;font-size:0.78rem;">'
+        f"Build <span style='color:#a5b4fc;font-weight:600'>{_label}</span></div>",
+        unsafe_allow_html=True,
+    )
+
 
 # ============================================================================
 # MAIN CONTENT
