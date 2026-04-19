@@ -41,7 +41,7 @@ MOCK_LIVE_TRANSCRIPT = [
     {"role": "agent", "ts": "10:02:41", "text": "Got it. I have Tuesday the 18th at 9 AM or Wednesday at 2 PM — which works better?"},
     {"role": "caller", "ts": "10:02:48", "text": "Tuesday at 9 works great."},
     {"role": "agent", "ts": "10:02:55", "text": "Let me get that locked in for you… one moment while I save this to our records."},
-    {"role": "system", "ts": "10:03:02", "text": "✓ Appointment saved · log_conversation API"},
+    {"role": "system", "ts": "10:03:02", "text": "✓ Appointment saved to your records."},
     {"role": "agent", "ts": "10:03:05", "text": "You're all set — your cleaning is confirmed for Tuesday at 9 AM. Anything else I can help with today?"},
 ]
 
@@ -707,20 +707,51 @@ st.markdown("""
         opacity: 0.95;
     }
     .live-transcript-scroll {
-        max-height: 280px; overflow-y: auto; padding-right: 6px;
+        max-height: min(58vh, 560px);
+        min-height: 220px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 14px 8px 16px 14px;
+        margin-top: 10px;
+        border-radius: 16px;
+        background: radial-gradient(120% 80% at 10% 0%, rgba(76, 29, 149, 0.18), transparent 55%),
+                      radial-gradient(100% 60% at 100% 100%, rgba(6, 95, 70, 0.16), transparent 45%),
+                      rgba(2, 6, 23, 0.72);
+        border: 1px solid rgba(99, 102, 241, 0.28);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
         font-family: ui-sans-serif, system-ui, sans-serif;
+        scrollbar-gutter: stable;
+        scrollbar-width: thin;
+        scrollbar-color: #4ade80 rgba(15, 23, 42, 0.85);
+    }
+    .live-transcript-scroll::-webkit-scrollbar {
+        width: 10px;
+    }
+    .live-transcript-scroll::-webkit-scrollbar-track {
+        background: rgba(15, 23, 42, 0.92);
+        border-radius: 10px;
+        margin: 6px 2px;
+    }
+    .live-transcript-scroll::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #4ade80, #22c55e 40%, #6C63FF);
+        border-radius: 10px;
+        border: 2px solid rgba(15, 23, 42, 0.98);
+        box-shadow: 0 0 10px rgba(34, 197, 94, 0.35);
+    }
+    .live-transcript-scroll::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, #86efac, #4ade80 45%, #8b5cf6);
     }
     .tx-line { margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; }
     .tx-badge {
         flex-shrink: 0; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
         letter-spacing: 0.06em; padding: 4px 8px; border-radius: 8px; min-width: 64px; text-align: center;
     }
-    .tx-badge-dentsi { background: rgba(108, 99, 255, 0.25); color: #c4b5fd; border: 1px solid rgba(108,99,255,0.45); }
-    .tx-badge-caller { background: rgba(34, 197, 94, 0.18); color: #86efac; border: 1px solid rgba(34,197,94,0.35); }
-    .tx-badge-system { background: rgba(6, 182, 212, 0.18); color: #67e8f9; border: 1px solid rgba(6,182,212,0.35); }
+    .tx-badge-dentsi { background: rgba(109, 40, 217, 0.45); color: #f5e1ff; border: 1px solid rgba(196, 181, 253, 0.65); text-shadow: 0 0 12px rgba(167, 139, 250, 0.35); }
+    .tx-badge-caller { background: rgba(21, 128, 61, 0.5); color: #ecfdf5; border: 1px solid rgba(74, 222, 128, 0.55); text-shadow: 0 0 10px rgba(52, 211, 153, 0.25); }
+    .tx-badge-system { background: rgba(8, 145, 178, 0.45); color: #ecfeff; border: 1px solid rgba(103, 232, 249, 0.55); text-shadow: 0 0 10px rgba(34, 211, 238, 0.25); }
     .tx-bubble {
         flex: 1; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(148, 163, 184, 0.12);
-        border-radius: 12px; padding: 10px 14px; font-size: 0.95rem; line-height: 1.45;
+        border-radius: 12px; padding: 11px 15px; font-size: 1rem; line-height: 1.5; font-weight: 500;
     }
     .tx-bubble--agent {
         color: #f3e8ff !important;
@@ -745,14 +776,14 @@ st.markdown("""
     .tx-bubble--system .tx-time { color: #67e8f9; }
     .tx-time { font-size: 0.72rem; margin-top: 4px; }
     
-    /* Right pane: live transcript rail */
+    /* Right pane: chat rail (card) */
     .rt-pane-outer {
-        background: linear-gradient(165deg, rgba(22, 30, 52, 0.98) 0%, rgba(11, 18, 32, 0.99) 100%);
-        border: 1px solid rgba(108, 99, 255, 0.4);
-        border-radius: 18px;
-        padding: 18px 18px 14px;
-        margin-bottom: 12px;
-        box-shadow: 0 10px 36px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+        background: linear-gradient(165deg, rgba(30, 27, 75, 0.55) 0%, rgba(11, 18, 32, 0.97) 42%, rgba(6, 12, 24, 0.98) 100%);
+        border: 1px solid rgba(129, 140, 248, 0.45);
+        border-radius: 22px;
+        padding: 20px 18px 18px;
+        margin-bottom: 14px;
+        box-shadow: 0 22px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(99, 102, 241, 0.12), inset 0 1px 0 rgba(255,255,255,0.06);
     }
     @keyframes notes-pill-glow {
         0%, 100% { box-shadow: 0 0 14px rgba(34, 197, 94, 0.4), 0 0 0 1px rgba(34, 197, 94, 0.85) inset; }
@@ -792,12 +823,16 @@ st.markdown("""
     }
     .live-transcript-shell--pane {
         margin-bottom: 0 !important;
-        margin-top: 8px;
-        min-height: 320px;
-        max-height: min(72vh, 780px);
+        margin-top: 4px;
+        min-height: 0;
+        max-height: none;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
     }
-    .live-transcript-shell--pane .live-transcript-scroll {
-        max-height: min(58vh, 620px) !important;
+    .live-transcript-shell--pane .live-transcript-head {
+        border-bottom-color: rgba(129, 140, 248, 0.25);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -947,30 +982,31 @@ def _build_transcript_html(lines: list) -> str:
 @st.fragment(run_every=timedelta(seconds=3))
 def _live_transcript_fragment():
     poll = st.session_state.get("tx_poll_api", False)
-    api_lines, updated_at = _fetch_transcript_from_api()
+    api_lines, _updated_at = _fetch_transcript_from_api()
     if poll and len(api_lines) > 0:
         display_lines = api_lines
-        badge = "Live API"
-        sub = f"Streaming from backend · updated {updated_at or ''}"
+        head_badge = "Live"
+        sub = "Listening in real time."
     elif poll:
         display_lines = st.session_state.live_transcript_lines
-        badge = "API (empty) + demo fallback"
-        sub = "Backend returned no lines yet — showing local mock. Use POST test line or ElevenLabs webhook."
+        head_badge = "Live"
+        sub = "Sample lines until the next update."
     else:
         display_lines = st.session_state.live_transcript_lines
-        badge = "Local demo"
-        sub = "Enable “Poll live transcript” to merge in /transcript/live (after deploy)."
+        head_badge = "Demo"
+        sub = "Sample conversation for the dashboard."
 
     sub_esc = html.escape(sub)
+    badge_esc = html.escape(head_badge)
     lines_html = _build_transcript_html(display_lines)
     st.markdown(f"""
 <div class="live-transcript-shell live-transcript-shell--pane">
     <div class="live-transcript-head">
         <div>
-            <div class="live-transcript-title">LIVE CALL TRANSCRIPT</div>
+            <div class="live-transcript-title">Conversation</div>
             <div class="live-transcript-subline">{sub_esc}</div>
         </div>
-        <div class="live-indicator"><span class="live-dot"></span> {badge}</div>
+        <div class="live-indicator"><span class="live-dot"></span> {badge_esc}</div>
     </div>
     <div class="live-transcript-scroll">
         {lines_html}
@@ -987,21 +1023,21 @@ def _render_right_transcript_pane():
             <span class="notes-progress-dot"></span>
             <span class="notes-progress-label">Notes in progress</span>
         </div>
-        <p class="notes-progress-hint">Live lines from Dentsi and the caller stream here.</p>
+        <p class="notes-progress-hint">Dentsi and your caller, line by line.</p>
     </div>
     """, unsafe_allow_html=True)
     st.checkbox(
-        "Poll live transcript from API",
+        "Use live server feed",
         key="tx_poll_api",
-        help="GET /transcript/live every 3s (Abacus Batch 2).",
+        help="When on, the transcript polls your deployed API for new lines.",
     )
     rc1, rc2, rc3 = st.columns(3)
     with rc1:
-        if st.button("Reset demo", key="live_tx_reset", use_container_width=True):
+        if st.button("Reset", key="live_tx_reset", use_container_width=True):
             st.session_state.live_transcript_lines = [dict(r) for r in MOCK_LIVE_TRANSCRIPT]
             st.rerun()
     with rc2:
-        if st.button("Simulate log", key="live_tx_sim", use_container_width=True):
+        if st.button("Demo wrap-up", key="live_tx_sim", use_container_width=True):
             st.session_state.live_transcript_lines.append({
                 "role": "agent",
                 "ts": "live",
@@ -1010,7 +1046,7 @@ def _render_right_transcript_pane():
             st.session_state.live_transcript_lines.append({
                 "role": "system",
                 "ts": "live",
-                "text": "✓ log_conversation · appointment_booked: true",
+                "text": "✓ Saved to records — appointment confirmed.",
             })
             st.session_state.live_transcript_lines.append({
                 "role": "agent",
@@ -1019,7 +1055,7 @@ def _render_right_transcript_pane():
             })
             st.rerun()
     with rc3:
-        if st.button("POST test line", key="live_tx_post", use_container_width=True):
+        if st.button("Send test", key="live_tx_post", use_container_width=True):
             try:
                 pr = requests.post(
                     f"{API_BASE}/transcript/line",
@@ -1230,21 +1266,15 @@ for col, (icon, value, label) in zip([col1, col2, col3, col4, col5, col6], metri
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-_s1, _s2, _s3 = st.columns([2.2, 1.4, 1.2])
-with _s1:
-    st.caption("Adjust how much space the notes panel uses — rest goes to tabs.")
-with _s2:
-    st.slider(
-        "Notes panel width",
-        min_value=14,
-        max_value=40,
-        value=int(st.session_state.right_pane_weight),
-        step=1,
-        key="right_pane_weight",
-        help="Smaller value = wider main tabs. Larger = wider transcript column.",
-    )
-with _s3:
-    st.metric("Notes column", f"{int(st.session_state.right_pane_weight)}%")
+st.slider(
+    "Transcript column width",
+    min_value=14,
+    max_value=40,
+    value=int(st.session_state.right_pane_weight),
+    step=1,
+    key="right_pane_weight",
+    help="Drag to balance the main workspace and the notes column.",
+)
 
 _rl = max(38, 100 - int(st.session_state.right_pane_weight))
 _dash_left, _dash_right = st.columns([_rl, int(st.session_state.right_pane_weight)], gap="medium")
