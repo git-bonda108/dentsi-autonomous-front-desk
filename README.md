@@ -12,7 +12,7 @@ feedback/training-export pipeline for improving the agent over time.
 
 **Orchestration pattern: single-agent tool loop.** One agent
 (`DentsiAgentService`) drives an OpenAI chat-completions function-calling loop
-with 17 tools (patient lookup/create, availability, booking, reschedule,
+with 18 tools (patient lookup/create, availability, booking, reschedule,
 cancel, escalation, urgency triage, medical alerts, date validation/parsing,
 sentiment). Each caller turn runs the loop until the model stops requesting
 tools, capped at 5 iterations, after which the agent hands off to staff. A
@@ -73,8 +73,8 @@ windows.
 Prerequisites: Node.js 18+, PostgreSQL, and API keys per the table below.
 
 ```bash
-git clone https://github.com/git-bonda108/Dentsi.git
-cd Dentsi/nodejs_space
+git clone https://github.com/git-bonda108/dentsi-voice-agent.git
+cd dentsi-voice-agent/nodejs_space
 npm install
 cp .env.example .env         # fill in DATABASE_URL and API keys
 npx prisma generate

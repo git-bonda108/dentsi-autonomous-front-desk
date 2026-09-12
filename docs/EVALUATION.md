@@ -33,7 +33,7 @@ the repository; nothing runs these automatically.
 services (voice/scheduler/policy/ops), which are not in the live webhook
 path; the production `DentsiAgentService` tool loop is exercised only
 indirectly via the call-flow spec's webhook tests and has no direct automated
-coverage of its 17 tools.
+coverage of its 18 tools.
 
 **Manual test specification.** `nodejs_space/docs/MVP_TEST_CASES.md` defines
 63 structured manual cases (TC-001…TC-072) across inbound flow, scheduling,
