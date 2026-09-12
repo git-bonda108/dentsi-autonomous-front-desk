@@ -2280,9 +2280,6 @@ st.markdown(f"""
             <img src="https://www.elevenlabs.io/favicon.ico" width="14" style="border-radius: 3px;"> ElevenLabs
         </span>
         <span style="display: flex; align-items: center; gap: 6px;">
-            <span style="font-size: 0.9rem;">🤖</span> Claude Sonnet
-        </span>
-        <span style="display: flex; align-items: center; gap: 6px;">
             <span style="font-size: 0.9rem;">📞</span> Twilio
         </span>
     </div>

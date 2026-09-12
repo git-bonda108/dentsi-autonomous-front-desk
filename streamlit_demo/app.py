@@ -323,7 +323,6 @@ with tab4:
     - **LLM**: OpenAI GPT-4
     - **Voice**: Twilio + Deepgram + ElevenLabs
     - **Backend**: NestJS + PostgreSQL
-    - **Hosting**: Abacus.AI
     """)
 
 # Footer

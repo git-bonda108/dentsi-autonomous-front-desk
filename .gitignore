@@ -26,3 +26,6 @@ out
 **/.env
 nodejs_space/.env
 dashboard/.env
+
+# OS junk
+.DS_Store

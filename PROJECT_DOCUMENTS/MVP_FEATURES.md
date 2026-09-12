@@ -423,7 +423,7 @@
 - **Recharts** - Data visualization
 
 ### **Infrastructure**
-- **Abacus AI Platform** - Cloud hosting and deployment
+- **Cloud hosting** - Any Node.js 18+ runtime with managed PostgreSQL
 - **WebSocket (Socket.io)** - Real-time dashboard updates (future)
 - **REST API** - Backend communication
 

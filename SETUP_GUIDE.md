@@ -14,8 +14,8 @@
 ## Step 1: Clone Repository
 
 ```bash
-git clone https://github.com/bonda108/DENTSI.git
-cd DENTSI
+git clone https://github.com/git-bonda108/Dentsi.git
+cd Dentsi
 ```
 
 ---
@@ -122,11 +122,11 @@ Dashboard runs at: http://localhost:8501
 
 ## Production Deployment
 
-### Abacus AI (Backend)
+### Backend (any Node.js host)
 1. Push to GitHub
-2. Create deployment on Abacus AI
+2. Create a deployment on your hosting platform (any Node 18+ runtime with PostgreSQL access)
 3. Set all environment variables
-4. Deploy
+4. Deploy, then point the Twilio/ElevenLabs webhooks at the deployed URL
 
 ### Streamlit Cloud (Dashboard)
 1. Push to GitHub
@@ -138,4 +138,4 @@ Dashboard runs at: http://localhost:8501
 
 ## Support
 
-Contact: satya@dentsi.com
+Open an issue on the repository.

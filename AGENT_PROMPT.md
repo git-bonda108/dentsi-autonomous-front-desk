@@ -302,18 +302,18 @@ For dental pain, toothache, swelling (not blocking airway), broken tooth, lost f
 1. **System Prompt**: Paste the above
 2. **Voice**: Bella - Professional, Bright
 3. **Language**: English
-4. **LLM**: Claude
+4. **LLM**: Select in the ElevenLabs console (the deploy script in `elevenlabs-agent/` provisions `gemini-2.0-flash`)
 5. **Dynamic Variables**: 
    - `clinic_name` = `{{clinic_name}}` (fallback - actual value comes from tools)
 
-6. **Tools** (5 webhooks):
+6. **Tools** (5 webhooks — replace `<BACKEND_URL>` with your deployed backend origin, the same value as `WEBHOOK_BASE_URL`):
    | Tool | URL | Method |
    |------|-----|--------|
-   | lookup_patient | https://dentcognit.abacusai.app/elevenlabs/tools/lookup-patient | POST |
-   | check_availability | https://dentcognit.abacusai.app/elevenlabs/tools/check-availability | POST |
-   | book_appointment | https://dentcognit.abacusai.app/elevenlabs/tools/book-appointment | POST |
-   | get_services | https://dentcognit.abacusai.app/elevenlabs/tools/get-services | POST |
-   | log_conversation | https://dentcognit.abacusai.app/elevenlabs/tools/log-conversation | POST |
+   | lookup_patient | `<BACKEND_URL>/elevenlabs/tools/lookup-patient` | POST |
+   | check_availability | `<BACKEND_URL>/elevenlabs/tools/check-availability` | POST |
+   | book_appointment | `<BACKEND_URL>/elevenlabs/tools/book-appointment` | POST |
+   | get_services | `<BACKEND_URL>/elevenlabs/tools/get-services` | POST |
+   | log_conversation | `<BACKEND_URL>/elevenlabs/tools/log-conversation` | POST |
 
 ---
 
@@ -328,7 +328,7 @@ For dental pain, toothache, swelling (not blocking airway), broken tooth, lost f
   "description": "Log the conversation summary at the end of the call. ALWAYS call this before ending.",
   "response_timeout_secs": 20,
   "api_schema": {
-    "url": "https://dentcognit.abacusai.app/elevenlabs/tools/log-conversation",
+    "url": "<BACKEND_URL>/elevenlabs/tools/log-conversation",
     "method": "POST",
     "request_body_schema": {
       "type": "object",
