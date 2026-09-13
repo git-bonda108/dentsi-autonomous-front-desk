@@ -14,8 +14,8 @@
 ## Step 1: Clone Repository
 
 ```bash
-git clone https://github.com/git-bonda108/dentsi-voice-agent.git
-cd dentsi-voice-agent
+git clone https://github.com/git-bonda108/dentsi-autonomous-front-desk.git
+cd dentsi-autonomous-front-desk
 ```
 
 ---

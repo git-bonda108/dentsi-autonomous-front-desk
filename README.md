@@ -73,8 +73,8 @@ windows.
 Prerequisites: Node.js 18+, PostgreSQL, and API keys per the table below.
 
 ```bash
-git clone https://github.com/git-bonda108/dentsi-voice-agent.git
-cd dentsi-voice-agent/nodejs_space
+git clone https://github.com/git-bonda108/dentsi-autonomous-front-desk.git
+cd dentsi-autonomous-front-desk/nodejs_space
 npm install
 cp .env.example .env         # fill in DATABASE_URL and API keys
 npx prisma generate
